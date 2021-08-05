@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <assert.h>
 
 struct RNG {
   static RNG &DEFAULT;
@@ -12,7 +13,7 @@ struct RNG {
 // Debiased Modulo (Once) — Java's Method
 // https://www.pcg-random.org/posts/bounded-rands.html
 //
-  uint32_t next_u32(uint32_t n) {
+  virtual uint32_t next_u32(uint32_t n) {
     uint32_t x, r;
     do {
       x = next_u32();
@@ -119,11 +120,27 @@ struct Card {
   bool operator>(const Card &to) const {
     return order > to.order;
   }
-
   void operator=(const Card &card) {
     order = card.order;
   }
+  static const Card SHIFT_LOCK_DOWN;
+  static const Card SHIFT_LOCK_UP;
+  static const Card SHIFT_DOWN;
+  static const Card SHIFT_UP;
+  static const Card NEWLINE;
+  static const Card BACKSLASH;
 };
+
+const char * const Card::SUITES[] = { "C","D","H","S","J" };
+const char * const Card::FACES[] = { "10","A","2","3","4","5","6","7","8","9", "J", "Q", "K" };
+const char * const Card::JOKER_FACES[] = { "A","B","C","D"};
+
+const Card Card::SHIFT_LOCK_DOWN(39);
+const Card Card::SHIFT_LOCK_UP(38);
+const Card Card::SHIFT_DOWN(37);
+const Card Card::SHIFT_UP(36);
+const Card Card::NEWLINE(35);
+const Card Card::BACKSLASH(34);
 
 std::ostream& operator<<(std::ostream &out, const Card &card) {
   char buffer[10];
@@ -140,12 +157,22 @@ Card subMod(const Card &a, const Card &b, int n) {
   return Card((a.order + (n-b.order)) % n);
 }
 
+std::ostream& operator<<(std::ostream &out, const std::vector<Card> &cards) {
+  out << "[";
+  for (size_t i=0; i<cards.size(); ++i) {
+    if (i > 0) out << ",";
+    out << cards[i];
+  }
+  out << "]";
+  
+  return out;
+}
+
 struct Deck {
   std::vector<Card> cards;
   int modulus() const { return cards.size() == 10 ? 10 : 40; }
-
-  void order() {
-    std::sort(std::begin(cards),std::end(cards));
+  void reset() {
+    sort(cards.begin(),cards.end());
   }
 
   Deck(size_t size) : cards(size) {
@@ -187,16 +214,16 @@ struct Deck {
     return cards[loc];
   }
 
-  Card add(const Card &a, const Card &b) const {
-    return addMod(a,b,modulus());
+  Card addMod(const Card &a, const Card &b) const {
+    return ::addMod(a,b,modulus());
   }
 
-Card sub(const Card &a, const Card &b) const {
-    return subMod(a,b,modulus());
+  Card subMod(const Card &a, const Card &b) const {
+    return ::subMod(a,b,modulus());
   }
 
   const Card &cipherPad() const {
-    return after(add(first(), Card(modulus() == 10 ? 1 : 11)));
+    return after(addMod(first(), Card(modulus() == 10 ? 1 : 11)));
   }
 
   const Card &cutPad() const {
@@ -214,186 +241,222 @@ Card sub(const Card &a, const Card &b) const {
 	      std::end(temp)-(cutloc));
     std::copy(std::begin(cards)+(cutloc),std::end(cards),std::begin(temp));
 
-    size_t top = cards.size()/2+1;
-    size_t bottom = top-1;
+    std::cout << "cut " << cut << ":" << std::endl;
+    std::cout << " before: " << cards << std::endl;
+    std::cout << "  after: " << temp << std::endl;    
+
+    size_t bottom = cards.size()/2;
+    size_t top = bottom-1;
     for (size_t i=0; i<cards.size(); ++i) {
       if (i % 2 == 0) {
-	++bottom;
 	cards.at(bottom)=temp[i];
+	++bottom;
       } else {
-	--top;
 	cards.at(top)=temp[i];
+	--top;
       }
     }
+
+    std::cout << "shuffle:" << std::endl;
+    std::cout << " before: " << temp << std::endl;
+    std::cout << "  after: " << cards << std::endl;    
+    
   }
 };
 
-const char * const Card::SUITES[] = { "C","D","H","S","J" };
-const char * const Card::FACES[] = { "10","A","2","3","4","5","6","7","8","9", "J", "Q", "K" };
-const char * const Card::JOKER_FACES[] = { "A","B","C","D"};
-
 std::ostream& operator<<(std::ostream &out, const Deck &deck) {
-  for (size_t i=0; i<deck.cards.size(); ++i) {
-    if (i > 0) out << " ";
-    out << deck.cards[i];
-  }
-  return out;
+  return out << deck.cards;
 }
-
-
 
 struct Messenger {
   Deck m_key;
   RNG &m_rng;
-  int m_cards;
   int m_prefixLen;
   int m_minSuffixLen;
   int m_mulLen;
   std::string m_text;
   std::vector<Card> m_plaincards;
   std::vector<Card> m_ciphercards;
+
+  int modulus() const { return m_key.modulus(); }
+  Card addMod(const Card &a, const Card &b) const { return m_key.addMod(a,b); }
+  Card subMod(const Card &a, const Card &b) const { return m_key.subMod(a,b); }  
   
-  Messenger(const Deck &key,
-	    RNG &rng = DEFAULT_OS_RNG,
-	    int cards = 40,
-	    int prefixLen = 10,
-	    int minSuffixLen = 5,
-	    int mulLen = 10)
-    : m_key(key),
-      m_rng(rng),
-      m_cards(cards),
+  Messenger(RNG &rng,
+	    int keyLen,
+	    int prefixLen,
+	    int minSuffixLen,
+	    int mulLen)
+    : m_rng(rng),
+      m_key(keyLen),
       m_prefixLen(prefixLen),
       m_minSuffixLen(minSuffixLen),
       m_mulLen(mulLen) {
   }
+
+  const Deck& key() const { return m_key;}
+  void key(const Deck &value) { assert(value.cards.size() == m_key.cards.size()); m_key = value; }
   
   const std::string &text() const { return m_text; }
   void text(const std::string &value) { m_text = value; }
 
-  const std::vector<Card> plaincards() const { return m_plaincards; }
-  const std::vector<Card> ciphercards() const { return m_ciphercards; }
+  const std::vector<Card>& plaincards() const { return m_plaincards; }
+  void plaincards(const std::vector<Card> &value) { m_plaincards = value; }  
+  const std::vector<Card>& ciphercards() const { return m_ciphercards; }
   void ciphercards(const std::vector<Card> &value) { m_ciphercards = value; }
   
   void addPrefix() {
-    for (int i=0; i<prefixLen; ++i) {
-      int order = rng.next(0,cards-1);
+    for (int i=0; i< m_prefixLen; ++i) {
+      int order = m_rng.next(0,modulus()-1);
       Card card(order);
-      plaintext.push_back(card);
+      m_plaincards.push_back(card);
     }
   }
 
   void addSuffix() {
-    for (int i=0; i<minSuffixLen; ++i) {
-      Card card((i==0 && cards == 10) ? 0 : cards-1);
-      cards.push_back(card);
+    for (int i=0; i<m_minSuffixLen; ++i) {
+      Card card((i==0 && modulus() == 10) ? 0 : modulus()-1);
+      m_plaincards.push_back(card);
     }
-    while (cards.size() % mulLen != 0) {
-      cards.push_back(Card(cards-1));
+    while (m_plaincards.size() % m_mulLen != 0) {
+      m_plaincards.push_back(Card(modulus()-1));
     }
   }
 
-  void removeSuffix() {
-    while (plaincards.size() > 0 && plaincards[plaincards.size()-1].order = cards-1) {
-      plaincards.pop_back();
+  bool removeSuffix() {
+    int suffixLen = 0;
+    while (m_plaincards.size() > 0 && m_plaincards[m_plaincards.size()-1].order == modulus()-1) {
+      m_plaincards.pop_back();
+      ++suffixLen;
     }
-    if (cards == 10 && plaincards.size() > 0 && plaincards[plaincards.size()-1].order == 0) {
-	plaincards.pop_back();
+    if (modulus() == 10 && m_plaincards.size() > 0 && m_plaincards[m_plaincards.size()-1].order == 0) {
+      m_plaincards.pop_back();
+      ++suffixLen;
     }
+    return (suffixLen >= m_minSuffixLen);
   }
 
   void addModPrefix() {
-    for (int i=prefixLen; i<plaincards.size(); ++i) {
-      plaincards[i] = Card((plaincards[i].order + plaincards[i % modDiv].order) % cards);
+    for (int i=m_prefixLen; i<m_plaincards.size(); ++i) {
+      m_plaincards[i] = addMod(m_plaincards[i],m_plaincards[i % m_prefixLen]);
     }
   }
 
-  void removeModPrefix() {
-    for (int i=prefixLen; i<plaincards.size(); ++i) {
-      plaincards[i] = Card((plaincards[i].order + (cards-plaincards[i % modDiv].order)) % cards);
+  void subModPrefix() {
+    for (int i=m_prefixLen; i<m_plaincards.size(); ++i) {
+      m_plaincards[i] = subMod(m_plaincards[i],m_plaincards[i % m_prefixLen]);
     }
   }
 
-  int m_shift;
-  bool m_lock;
-  void add(const Card &card) {
-    plaincards.push_back(card);
-    if (!m_lock) {
-      m_shift = 0;
-    }
-  }
-
-  void shift(int value, bool lock = false) {
-    if (value < -1) value = -1;
-    if (value >  1) value = 1;
-    while (m_shift != value) {
-      if (m_shift < value) {
-	plaincards.push_back(lock ? SHIFT_UP_LOCK : SHIFT_UP);
-	++m_shift;
-      } else {
-	plaincards.push_back(lock ? SHIFT_DOWN_LOCK : SHIFT_DOWN);
-	--m_shift;
-      }
-    }
-    if (m_shift != 0
-  }
-
-  void encodeAsOctet(uint8_t value) {
-    assert(false);
-  }
+  static const std::string UN;
+  static const std::string DOWN;
+  static const std::string UP;  
 
   void encode() {
-    int shift = 0;
+    if (m_plaincards.size() == 0) {
+      addPrefix();
+    }
     int i = 0;
     while (i < m_text.size()) {
+      int upLen = 0;
+      while (i + upLen < m_text.size() && UP.find(m_text[i+upLen]) >= 0) ++upLen;
       int unLen = 0;
       while (i + unLen < m_text.size() && UN.find(m_text[i+unLen]) >= 0) ++unLen;
       int downLen = 0;
-      while (i + downLen < m_text.size() && DOWN.find(m_text[i+downLen]) >= 0) ++downLen;
-      int upLen = 0;
-      while (i + upLen < m_text.size() && UP.find(m_text[i+upLen]) >= 0) ++upLen;
+      // encode all unfound codes as octets
+      while (i + downLen < m_text.size() && (DOWN.find(m_text[i+downLen]) >= 0 || (UN.find(m_text[i+downLen]) == -1 && UP.find(m_text[i+downLen] == -1)))) {
+	++downLen;
+      }
 
-      int maxLen = max(max(downLen,upLen),unLen);
-      if (maxLen == 0) {
-	encodeOctet(m_text[i]);
-	++i;
+      int maxLen = std::max(std::max(downLen,upLen),unLen);
+      if (unLen == maxLen) {
+	for (int j=0; j<unLen; ++j) {
+	  m_plaincards.push_back(Card(UN.find(m_text[i])));
+	  ++i;
+	}
+      } else if (upLen == maxLen) {
+	m_plaincards.push_back(upLen > 1 ? Card::SHIFT_LOCK_UP : Card::SHIFT_UP);
+	for (int j=0; j<upLen; ++j) {
+	  m_plaincards.push_back(Card(UP.find(m_text[i])));
+	  ++i;
+	}
+	if (upLen > 1 && i < m_plaincards.size()) {
+	  m_plaincards.push_back(Card::SHIFT_LOCK_DOWN);
+	}
       } else {
-	if ((shift == 0 && unLen > 0) || (unLen == maxLen)) {
-	  if (shift != 0) {
-	    if (shift == -1) {
-	      plaincards.push_back(CARD_SHIFT_LOCK_UP);
-	    } else {
-	      plaincards.push_back(CARD_SHIFT_LOCK_DOWN);	      
-	    }
+	std::vector<Card> cards;
+	for (int j=0; j<downLen; ++j) {
+	  int order = DOWN.find(m_text[i]);
+	  if (order >= 0) {
+	    cards.push_back(Card(order));
+	  } else {
+	    uint8_t o2 = (m_text[i] >> 6) & 0x3;
+	    uint8_t o1 = (m_text[i] >> 3) & 0x7;
+	    uint8_t o0 = (m_text[i] >> 0) & 0x7;
+	    cards.push_back(Card::BACKSLASH);
+	    cards.push_back(Card(o2));
+	    cards.push_back(Card(o1));
+	    cards.push_back(Card(o0));
+	  }
+	  ++i;
+	}
+	m_plaincards.push_back(cards.size() > 1 ? Card::SHIFT_LOCK_DOWN : Card::SHIFT_DOWN);
+	m_plaincards.insert(m_plaincards.end(),cards.begin(),cards.end());
+	if (cards.size() > 1 && i < m_plaincards.size()) {
+	  m_plaincards.push_back(Card::SHIFT_LOCK_UP);
+	}
+      }
+    }
+  }
+
+  void decode() {
+    int shift = 0;
+    int shiftLen = -1;
+    m_text.clear();
+    for (int i = m_prefixLen; i < m_plaincards.size(); ++i) {
+      Card &card=m_plaincards[i];
+      if (card == Card::SHIFT_LOCK_UP || card == Card::SHIFT_UP) {
+	++shift;
+	if (shift > 1) shift = 1;
+	shiftLen = (shift == 0 || card == Card::SHIFT_LOCK_UP) ? -1 : 1;
+	continue;
+      } else if (card == Card::SHIFT_LOCK_DOWN || card == Card::SHIFT_DOWN) {
+	--shift;
+	if (shift < -1) shift = -1;
+	shiftLen = (shift == 0 || card == Card::SHIFT_LOCK_DOWN) ? -1 : 1;
+	continue;
+      }
+      if (shift == 0) {
+	if (card.order < UN.length()) {
+	  m_text.push_back(UN[card.order]);
+	}
+      } else if (shift == 1) {
+	if (card.order < UP.length()) {
+	  m_text.push_back(UP[card.order]);
+	}
+	if (shiftLen > 0) {
+	  if (--shiftLen == 0) {
+	    shiftLen = -1;
 	    shift = 0;
 	  }
-	  for (int j=0; j<unLen; ++j) {
-	    plaincards.push_back(Cards(UN.find(m_text[i])));
-	    ++i;
-	  }
-	} else if ((shift == 1 && upLen > 0) || (upLen == maxLen)) {
-	  if (shift != 1) {
-	    if (shift == -1) {
-	      plaincards.push_back(CARD_SHIFT_LOCK_UP);
-	    }
-	    plaincards.push_back(upLen > 1 ? CARD_SHIFT_LOCK_UP : CARD_SHIFT_UP);
-	  }
-	  for (int j=0; j<upLen; ++j) {
-	    plaincards.push_back(Cards(UP.find(m_text[i])));
-	    ++i;
-	  }
-	  shift = (upLen > 1) ? 1 : 0;
+	}
+      } else if (shift == -1) {
+	if (card == Card::BACKSLASH && shiftLen == -1 && i + 4 < m_plaincards.size() &&  m_plaincards[i+1].order < 8 && m_plaincards[i+2].order < 8 && m_plaincards[i+3].order < 8) {
+	  uint8_t o2 = m_plaincards[i+1].order;
+	  uint8_t o1 = m_plaincards[i+2].order;
+ uint8_t o0 = m_plaincards[i+3].order;
+	  uint8_t b = (o2 << 6) | (o1 << 3) | o0;
+	  m_text.push_back(b);
 	} else {
-	  if (shift != -1) {
-	    if (shift == 1) {
-	      plaincards.push_back(CARD_SHIFT_LOCK_DOWN);
+	  if (card.order < DOWN.length()) {
+	    m_text.push_back(DOWN[card.order]);
+	  }
+	  if (shiftLen > 0) {
+	    if (--shiftLen == 0) {
+	      shiftLen = -1;
+	      shift = 0;
 	    }
-	    plaincards.push_back(downLen > 1 ? CARD_SHIFT_LOCK_DOWN : CARD_SHIFT_DOWN);
 	  }
-	  for (int j=0; j<upLen; ++j) {
-	    plaincards.push_back(Cards(UP.find(m_text[i])));
-	    ++i;
-	  }
-	  shift = (downLen > 1) ? -1 : 0;
 	}
       }
     }
@@ -401,39 +464,57 @@ struct Messenger {
   
   void encrypt() {
     Deck work(m_key);
-    plaincards.clear();
-    ciphercards.clear();
-    addPrefix();
-    encode();
-    addSuffix();
-    addModPrefix();
-    for (int i=0; i<plaincards.size(); ++i) {
+    for (int i=0; i<m_plaincards.size(); ++i) {
+      Card plainCard = m_plaincards[i];
       Card cipherPad = work.cipherPad();
       Card cutPad = work.cutPad();
-      Card cutCard = work.add(plaincards[i],cutPad);
-      Card cipherCard = work.add(plaincards[i],cipherPad);
-      ciphercards.push_back(cipherCard);
+      Card cutCard = work.addMod(plainCard,cutPad);
+      Card cipherCard = work.addMod(m_plaincards[i],cipherPad);
+      std::cout << "cipher pad = " << cipherPad << ", cut pad = " << cutPad << ", plain = " << plainCard << ", cipher=" << cipherCard << std::endl;
+      m_ciphercards.push_back(cipherCard);
       work.pseudoShuffle(cutCard);
     }
-    return 0;
   }
   
-  bool decrypt() {
+  void decrypt() {
     Deck work(m_key);
-    plaincards.clear();
-    for (int i=0; i<ciphercards.size(); ++i) {
-      Card cipherCard = ciphercards[i];
+    m_plaincards.clear();
+    for (int i=0; i<m_ciphercards.size(); ++i) {
+      Card cipherCard = m_ciphercards[i];
       Card cipherPad = work.cipherPad();
       Card cutPad = work.cutPad();
-      Card cutCard = work.add(plaincards[i],cutPad);
-      Card plainCard = work.sub(cipherCard,cipherPad);
-      plaincards.push_back(plaincarCard);
+      Card plainCard = work.subMod(cipherCard,cipherPad);
+      Card cutCard = work.addMod(plainCard,cutPad);
+      std::cout << "cipher pad = " << cipherPad << ", cut pad = " << cutPad << ", plain = " << plainCard << ", cipher=" << cipherCard << std::endl;
+      m_plaincards.push_back(plainCard);
       work.pseudoShuffle(cutCard);
     }
-    return 0;
-  }
   }
 
+  void reset() {
+    m_key.reset();
+    m_text.clear();
+    m_plaincards.clear();
+    m_ciphercards.clear();
+  }
+};
+
+const std::string Messenger::UP  ("ABCDEFGHIJKLMNOPQRSTUVWXYZ[]=~-;!`\\\n");
+const std::string Messenger::UN  ("abcdefghijklmnopqrstuvwxyz<>{} :.\"\\\n");
+const std::string Messenger::DOWN("0123456789ABCDEF+-~@#$%^&|()*/_,?\'\\\n");
+
+struct TEST_RNG : RNG {
+  uint32_t m_state;
+  TEST_RNG(uint32_t state=0) : m_state(state) { }
+  virtual uint32_t next_u32() {
+    ++m_state;
+    return m_state;
+  }
+  virtual uint32_t next_u32(uint32_t n) {
+    ++m_state;
+    return m_state % n;
+  }
+};
 
 int main(int argc, char *argv[])
 {
@@ -449,5 +530,58 @@ int main(int argc, char *argv[])
   Deck deck54(54);
   std::cout << deck54 << std::endl;
 
-  return 0;
+  assert(deck10.cipherPad() == Card(2));
+  assert(deck10.cutPad() == Card(1));
+  assert(deck40.cipherPad() == Card(12));
+  assert(deck40.cutPad() == Card(1));
+
+  TEST_RNG rng;
+
+  int cards = 40;
+  int prefixLen = (cards == 10) ? 4 : 10;
+  int minSuffixLen = (cards == 10) ? 2 : 5;
+  int modLen = (cards == 10) ? 4 : 10;
+
+  std::string text = "Hello World! <in color!>";
+
+  
+  Messenger encrypter(rng, cards, prefixLen, minSuffixLen, modLen);
+  Messenger decrypter(rng, cards, prefixLen, minSuffixLen, modLen);
+  Deck key = (cards == 10) ? deck10 : deck40;
+
+  encrypter.reset();
+  encrypter.key(key);
+  std::cout << "en key: " << encrypter.key() << std::endl;
+  encrypter.text(text);
+  std::cout << "en text: " << encrypter.text() << std::endl;
+  encrypter.addPrefix();
+  std::cout << "en prefix: " << encrypter.plaincards() << std::endl;  
+  encrypter.encode();
+  std::cout << "en prefix/plaincards: " << encrypter.plaincards() << std::endl;
+  encrypter.addSuffix();
+  std::cout << "en prefix/plaincards/suffix: " << encrypter.plaincards() << std::endl;  
+  encrypter.addModPrefix();
+  std::cout << "en prefix/mod[plaincards/suffix]: " << encrypter.plaincards() << std::endl;
+  encrypter.encrypt();
+  std::cout << "en ciphercards: " << encrypter.ciphercards() << std::endl;
+
+  std::cout << "for '" << encrypter.text() << "\', send " << encrypter.ciphercards() << std::endl;
+
+  decrypter.reset();
+  decrypter.key(key);
+  std::cout << "de key: " << decrypter.key() << std::endl;  
+  decrypter.ciphercards(encrypter.ciphercards());
+  std::cout << "de ciphercards: " << decrypter.ciphercards() << std::endl;
+  decrypter.decrypt();
+  std::cout << "de prefix/mod[plaincards/suffix]: " << decrypter.plaincards() << std::endl;
+  decrypter.subModPrefix();
+  std::cout << "de prefix/plaincards/suffix: " << decrypter.plaincards() << std::endl;
+
+  bool ok = decrypter.removeSuffix();
+  std::cout << "de prefix/plaincards: " << decrypter.plaincards() << " (ok: " << ok << ")" << std::endl;
+  decrypter.decode();
+  std::cout << "de text: " << decrypter.text() << " (ok: " << ok << ")" << std::endl;
+
+  return 0;  
+
 }
