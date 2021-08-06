@@ -143,7 +143,7 @@ const Card Card::NEWLINE(35);
 const Card Card::BACKSLASH(34);
 
 std::ostream& operator<<(std::ostream &out, const Card &card) {
-  char buffer[10];
+  char buffer[32];
   snprintf(buffer, sizeof(buffer), "%02d(%s%s)",card.order,card.face(),card.suite());
   return out << buffer;
 }
@@ -356,31 +356,42 @@ struct Messenger {
     if (m_plaincards.size() == 0) {
       addPrefix();
     }
-    int i = 0;
+    int i=0;
     while (i < m_text.size()) {
       int upLen = 0;
-      while (i + upLen < m_text.size() && UP.find(m_text[i+upLen]) >= 0) ++upLen;
+      while (i + upLen < m_text.size() && UP.find(m_text[i+upLen]) != std::string::npos) ++upLen;
       int unLen = 0;
-      while (i + unLen < m_text.size() && UN.find(m_text[i+unLen]) >= 0) ++unLen;
+      while (i + unLen < m_text.size() && UN.find(m_text[i+unLen]) != std::string::npos) ++unLen;
       int downLen = 0;
       // encode all unfound codes as octets
-      while (i + downLen < m_text.size() && (DOWN.find(m_text[i+downLen]) >= 0 || (UN.find(m_text[i+downLen]) == -1 && UP.find(m_text[i+downLen] == -1)))) {
+      while (i + downLen < m_text.size() && (DOWN.find(m_text[i+downLen]) != std::string::npos || (UN.find(m_text[i+downLen]) == std::string::npos && UP.find(m_text[i+downLen]) == std::string::npos))) {
 	++downLen;
       }
 
+      std::cout << "upLen=" << upLen << ",unLen=" << unLen << ",downLen=" << downLen << std::endl;
+
       int maxLen = std::max(std::max(downLen,upLen),unLen);
+
+      std::cout << "maxLen=" << maxLen << std::endl;
+      
       if (unLen == maxLen) {
+	std::vector<Card> cards;
 	for (int j=0; j<unLen; ++j) {
-	  m_plaincards.push_back(Card(UN.find(m_text[i])));
+	  cards.push_back(Card(UN.find(m_text[i])));
 	  ++i;
 	}
+	std::cout << "un cards=" << cards << std::endl;
+	m_plaincards.insert(m_plaincards.end(),cards.begin(),cards.end());
       } else if (upLen == maxLen) {
-	m_plaincards.push_back(upLen > 1 ? Card::SHIFT_LOCK_UP : Card::SHIFT_UP);
+	std::vector<Card> cards;	
 	for (int j=0; j<upLen; ++j) {
-	  m_plaincards.push_back(Card(UP.find(m_text[i])));
+	  cards.push_back(Card(UP.find(m_text[i])));
 	  ++i;
 	}
-	if (upLen > 1 && i < m_plaincards.size()) {
+	m_plaincards.push_back(cards.size() > 1 ? Card::SHIFT_LOCK_UP : Card::SHIFT_UP);
+	std::cout << "up cards=" << cards << std::endl;
+	m_plaincards.insert(m_plaincards.end(),cards.begin(),cards.end());
+	if (cards.size() > 1 && i < m_plaincards.size()) {
 	  m_plaincards.push_back(Card::SHIFT_LOCK_DOWN);
 	}
       } else {
@@ -402,6 +413,7 @@ struct Messenger {
 	  ++i;
 	}
 	m_plaincards.push_back(cards.size() > 1 ? Card::SHIFT_LOCK_DOWN : Card::SHIFT_DOWN);
+	std::cout << "down cards=" << cards << std::endl;
 	m_plaincards.insert(m_plaincards.end(),cards.begin(),cards.end());
 	if (cards.size() > 1 && i < m_plaincards.size()) {
 	  m_plaincards.push_back(Card::SHIFT_LOCK_UP);
@@ -516,6 +528,10 @@ struct TEST_RNG : RNG {
 
 int main(int argc, char *argv[])
 {
+  std::cout << "SHIFT_LOCK_DOWN: " << Card::SHIFT_LOCK_DOWN << std::endl;
+  std::cout << "SHIFT_LOCK_UP: " << Card::SHIFT_LOCK_UP << std::endl;
+  std::cout << "SHIFT_DOWN: " << Card::SHIFT_DOWN << std::endl;
+  std::cout << "SHIFT_UP: " << Card::SHIFT_UP << std::endl;
   Deck deck10(10);
   std::cout << deck10 << std::endl;
 
