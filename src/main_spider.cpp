@@ -615,6 +615,41 @@ int main(int argc, char *argv[])
   decrypter.decode();
   std::cout << "de text: " << decrypter.text() << " (ok: " << ok << ")" << std::endl;
 
+
+  Deck spin(deck40);
+  int ciphers[40],cuts[40];
+  for (int i=0; i<40; ++i) {
+    ciphers[i]=0;
+    cuts[i]=0;
+  }
+  int n = 100000000;
+  for (int i=0; i<n; ++i) {
+    ++ciphers[spin.cipherPad().order];
+    ++cuts[spin.cutPad().order];
+    spin.pseudoShuffle(Card((spin.cutPad().order+(i%10))%40));
+  }
+
+  double z_ciphers[40],z_cuts[40];
+  double p = 1.0/40.0;
+  double q = 39.0/40.0;
+
+  for (int i=0; i<40; ++i) {
+    z_ciphers[i]=(ciphers[i]-n*p)/sqrt(n*p*q);
+    z_cuts[i]=(cuts[i]-n*p)/sqrt(n*p*q);
+  }
+
+  std::cout << "z_ciphers:";
+  for (int i=0; i<40; ++i) {
+    std::cout << " " << z_ciphers[i];
+  }
+  std::cout << std::endl;
+
+  std::cout << "z_cuts:";
+  for (int i=0; i<40; ++i) {
+    std::cout << " " << z_cuts[i];
+  }
+  std::cout << std::endl;
+
   return 0;  
 
 }
