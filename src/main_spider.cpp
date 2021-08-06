@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <assert.h>
 
+const int DEBUG = 0;
+
 struct RNG {
   static RNG &DEFAULT;
   virtual uint32_t next_u32() = 0;
@@ -241,9 +243,11 @@ struct Deck {
 	      std::end(temp)-(cutloc));
     std::copy(std::begin(cards)+(cutloc),std::end(cards),std::begin(temp));
 
-    std::cout << "cut " << cut << ":" << std::endl;
-    std::cout << " before: " << cards << std::endl;
-    std::cout << "  after: " << temp << std::endl;    
+    if (DEBUG >= 10) {
+      std::cout << "cut " << cut << ":" << std::endl;
+      std::cout << " before: " << cards << std::endl;
+      std::cout << "  after: " << temp << std::endl;
+    }
 
     size_t bottom = cards.size()/2;
     size_t top = bottom-1;
@@ -257,10 +261,11 @@ struct Deck {
       }
     }
 
-    std::cout << "shuffle:" << std::endl;
-    std::cout << " before: " << temp << std::endl;
-    std::cout << "  after: " << cards << std::endl;    
-    
+    if (DEBUG >= 10) {
+      std::cout << "shuffle:" << std::endl;
+      std::cout << " before: " << temp << std::endl;
+      std::cout << "  after: " << cards << std::endl;
+    }
   }
 };
 
@@ -368,11 +373,15 @@ struct Messenger {
 	++downLen;
       }
 
-      std::cout << "upLen=" << upLen << ",unLen=" << unLen << ",downLen=" << downLen << std::endl;
+      if (DEBUG >= 100) {
+	std::cout << "upLen=" << upLen << ",unLen=" << unLen << ",downLen=" << downLen << std::endl;
+      }
 
       int maxLen = std::max(std::max(downLen,upLen),unLen);
 
-      std::cout << "maxLen=" << maxLen << std::endl;
+      if (DEBUG >= 100) {      
+	std::cout << "maxLen=" << maxLen << std::endl;
+      }
       
       if (unLen == maxLen) {
 	std::vector<Card> cards;
@@ -380,7 +389,9 @@ struct Messenger {
 	  cards.push_back(Card(UN.find(m_text[i])));
 	  ++i;
 	}
-	std::cout << "un cards=" << cards << std::endl;
+	if (DEBUG >= 100) {
+	  std::cout << "un cards=" << cards << std::endl;
+	}
 	m_plaincards.insert(m_plaincards.end(),cards.begin(),cards.end());
       } else if (upLen == maxLen) {
 	std::vector<Card> cards;	
@@ -389,7 +400,9 @@ struct Messenger {
 	  ++i;
 	}
 	m_plaincards.push_back(cards.size() > 1 ? Card::SHIFT_LOCK_UP : Card::SHIFT_UP);
-	std::cout << "up cards=" << cards << std::endl;
+	if (DEBUG >= 100) {
+	  std::cout << "up cards=" << cards << std::endl;
+	}
 	m_plaincards.insert(m_plaincards.end(),cards.begin(),cards.end());
 	if (cards.size() > 1 && i < m_plaincards.size()) {
 	  m_plaincards.push_back(Card::SHIFT_LOCK_DOWN);
@@ -413,7 +426,9 @@ struct Messenger {
 	  ++i;
 	}
 	m_plaincards.push_back(cards.size() > 1 ? Card::SHIFT_LOCK_DOWN : Card::SHIFT_DOWN);
-	std::cout << "down cards=" << cards << std::endl;
+	if (DEBUG >= 100) {
+	  std::cout << "down cards=" << cards << std::endl;
+	}
 	m_plaincards.insert(m_plaincards.end(),cards.begin(),cards.end());
 	if (cards.size() > 1 && i < m_plaincards.size()) {
 	  m_plaincards.push_back(Card::SHIFT_LOCK_UP);
@@ -480,7 +495,9 @@ struct Messenger {
       Card cutPad = work.cutPad();
       Card cutCard = work.addMod(plainCard,cutPad);
       Card cipherCard = work.addMod(m_plaincards[i],cipherPad);
-      std::cout << "cipher pad = " << cipherPad << ", cut pad = " << cutPad << ", plain = " << plainCard << ", cipher=" << cipherCard << std::endl;
+      if (DEBUG >= 100) {
+	std::cout << "cipher pad = " << cipherPad << ", cut pad = " << cutPad << ", plain = " << plainCard << ", cipher=" << cipherCard << std::endl;
+      }
       m_ciphercards.push_back(cipherCard);
       work.pseudoShuffle(cutCard);
     }
@@ -495,7 +512,9 @@ struct Messenger {
       Card cutPad = work.cutPad();
       Card plainCard = work.subMod(cipherCard,cipherPad);
       Card cutCard = work.addMod(plainCard,cutPad);
-      std::cout << "cipher pad = " << cipherPad << ", cut pad = " << cutPad << ", plain = " << plainCard << ", cipher=" << cipherCard << std::endl;
+      if (DEBUG >= 100) {
+	std::cout << "cipher pad = " << cipherPad << ", cut pad = " << cutPad << ", plain = " << plainCard << ", cipher=" << cipherCard << std::endl;
+      }
       m_plaincards.push_back(plainCard);
       work.pseudoShuffle(cutCard);
     }
