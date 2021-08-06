@@ -386,13 +386,14 @@ struct Messenger {
       } else {
 	std::vector<Card> cards;
 	for (int j=0; j<downLen; ++j) {
-	  int order = DOWN.find(m_text[i]);
+	  uint8_t ch = m_text[i];
+	  int order = DOWN.find(ch);
 	  if (order >= 0) {
 	    cards.push_back(Card(order));
 	  } else {
-	    uint8_t o2 = (m_text[i] >> 6) & 0x3;
-	    uint8_t o1 = (m_text[i] >> 3) & 0x7;
-	    uint8_t o0 = (m_text[i] >> 0) & 0x7;
+	    uint8_t o2 = (ch >> 6) & 0x3;
+	    uint8_t o1 = (ch >> 3) & 0x7;
+	    uint8_t o0 = (ch >> 0) & 0x7;
 	    cards.push_back(Card::BACKSLASH);
 	    cards.push_back(Card(o2));
 	    cards.push_back(Card(o1));
@@ -411,19 +412,19 @@ struct Messenger {
 
   void decode() {
     int shift = 0;
-    int shiftLen = -1;
+    bool lock = true;
     m_text.clear();
     for (int i = m_prefixLen; i < m_plaincards.size(); ++i) {
       Card &card=m_plaincards[i];
       if (card == Card::SHIFT_LOCK_UP || card == Card::SHIFT_UP) {
 	++shift;
 	if (shift > 1) shift = 1;
-	shiftLen = (shift == 0 || card == Card::SHIFT_LOCK_UP) ? -1 : 1;
+	lock = (shift == 0 || card == Card::SHIFT_LOCK_UP);
 	continue;
       } else if (card == Card::SHIFT_LOCK_DOWN || card == Card::SHIFT_DOWN) {
 	--shift;
 	if (shift < -1) shift = -1;
-	shiftLen = (shift == 0 || card == Card::SHIFT_LOCK_DOWN) ? -1 : 1;
+	lock = (shift == 0 || card == Card::SHIFT_LOCK_DOWN);
 	continue;
       }
       if (shift == 0) {
@@ -434,28 +435,25 @@ struct Messenger {
 	if (card.order < UP.length()) {
 	  m_text.push_back(UP[card.order]);
 	}
-	if (shiftLen > 0) {
-	  if (--shiftLen == 0) {
-	    shiftLen = -1;
-	    shift = 0;
-	  }
+	if (!lock) {
+	  shift = 0;
+	  lock = true;
 	}
       } else if (shift == -1) {
-	if (card == Card::BACKSLASH && shiftLen == -1 && i + 4 < m_plaincards.size() &&  m_plaincards[i+1].order < 8 && m_plaincards[i+2].order < 8 && m_plaincards[i+3].order < 8) {
+	if (card == Card::BACKSLASH && lock && i + 4 < m_plaincards.size() &&
+	    m_plaincards[i+1].order < 8 && m_plaincards[i+2].order < 8 && m_plaincards[i+3].order < 8) {
 	  uint8_t o2 = m_plaincards[i+1].order;
 	  uint8_t o1 = m_plaincards[i+2].order;
- uint8_t o0 = m_plaincards[i+3].order;
+	  uint8_t o0 = m_plaincards[i+3].order;
 	  uint8_t b = (o2 << 6) | (o1 << 3) | o0;
 	  m_text.push_back(b);
 	} else {
 	  if (card.order < DOWN.length()) {
 	    m_text.push_back(DOWN[card.order]);
 	  }
-	  if (shiftLen > 0) {
-	    if (--shiftLen == 0) {
-	      shiftLen = -1;
-	      shift = 0;
-	    }
+	  if (!lock) {
+	    shift = 0;
+	    lock = true;
 	  }
 	}
       }
