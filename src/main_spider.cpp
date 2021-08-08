@@ -1,9 +1,11 @@
 #include <iostream>
 #include <stdint.h>
 #include <vector>
+#include <set>
 #include <string>
 #include <algorithm>
 #include <assert.h>
+#include <math.h>
 
 const int DEBUG = 0;
 
@@ -51,6 +53,19 @@ struct OS_RNG : RNG {
 OS_RNG DEFAULT_OS_RNG;
 
 RNG& RNG::DEFAULT(DEFAULT_OS_RNG);
+
+struct TEST_RNG : RNG {
+  uint32_t m_state;
+  TEST_RNG(uint32_t state=0) : m_state(state) { }
+  virtual uint32_t next_u32() {
+    ++m_state;
+    return m_state;
+  }
+  virtual uint32_t next_u32(uint32_t n) {
+    ++m_state;
+    return m_state % n;
+  }
+};
 
 struct Card {
   static const uint8_t JOKER_SUITE = 4;
@@ -116,6 +131,11 @@ struct Card {
   bool operator==(const Card &to) const {
     return order == to.order;
   }
+
+  bool operator!=(const Card &to) const {
+    return order != to.order;
+  }
+
   bool operator>=(const Card &to) const {
     return order >= to.order;
   }
@@ -266,6 +286,30 @@ struct Deck {
       std::cout << " before: " << temp << std::endl;
       std::cout << "  after: " << cards << std::endl;
     }
+  }
+
+  bool operator<(const Deck &deck) const {
+    if (cards.size() != deck.cards.size()) {
+      return cards.size() < deck.cards.size();
+    }
+    for (size_t i=0; i<cards.size(); ++i) {
+      if (cards[i] != deck.cards[i]) {
+	return cards[i] < deck.cards[i];
+      }
+    }
+    return false;
+  }
+
+  bool operator==(const Deck &deck) const {
+    if (cards.size() != deck.cards.size()) {
+      return false;
+    }
+    for (size_t i=0; i<cards.size(); ++i) {
+      if (cards[i] != deck.cards[i]) {
+	return false;
+      }
+    }
+    return true;
   }
 };
 
@@ -532,18 +576,100 @@ const std::string Messenger::UP  ("ABCDEFGHIJKLMNOPQRSTUVWXYZ[]=~-;!`\\\n");
 const std::string Messenger::UN  ("abcdefghijklmnopqrstuvwxyz<>{} :.\"\\\n");
 const std::string Messenger::DOWN("0123456789ABCDEF+-~@#$%^&|()*/_,?\'\\\n");
 
-struct TEST_RNG : RNG {
-  uint32_t m_state;
-  TEST_RNG(uint32_t state=0) : m_state(state) { }
-  virtual uint32_t next_u32() {
-    ++m_state;
-    return m_state;
+
+class Search {
+  int cards;
+  int dist;
+  bool cycleFound;
+  bool intersects;
+  std::set<Deck> forward,fboundary;
+  std::set<Deck> reverse,rboundary;
+
+  Search(int _cards) {
+    cards=_cards;
+    dist=0;
+    cycleFound=false;
+    forward.clear();
+    reverse.clear();
+    fboundary.clear();
+    rboundary.clear();
+    fboundary.insert(Deck(cards));
+    rboundary.insert(Deck(cards));      
   }
-  virtual uint32_t next_u32(uint32_t n) {
-    ++m_state;
-    return m_state % n;
+
+  void grow() {
+    if (cycleFound) return;
+
+    if (dist % 2 == 0) {
+      growForward();
+    } else {
+      growBackward();
+    }
+    ++dist;
   }
+
+  void growBackward() {
+    // fixme
+  }
+
+  void growForward() {
+    std::set<Deck> newBoundary;
+    forward.insert(fboundary.begin(), fboundary.end());
+
+    for (auto deck : fboundary) {
+      for (int card  = 0; card < cards; ++card) {
+	Deck newDeck(deck);
+	newDeck.pseudoShuffle(Card(card));
+	if (rboundary.find(newDeck) != rboundary.end()) {
+	  cycleFound = true;
+	  return;
+	} else {
+	  newBoundary.insert(deck);
+	}
+      }
+    }
+    fboundary.swap(newBoundary);
+  }
+  
 };
+
+void test_stats() {
+  Deck deck40(40);
+  Deck spin(deck40);
+  int ciphers[40],cuts[40];
+  for (int i=0; i<40; ++i) {
+    ciphers[i]=0;
+    cuts[i]=0;
+  }
+  int n = 100000000;
+  for (int i=0; i<n; ++i) {
+    ++ciphers[spin.cipherPad().order];
+    ++cuts[spin.cutPad().order];
+    spin.pseudoShuffle(Card((spin.cutPad().order+(i%10))%40));
+  }
+
+  double z_ciphers[40],z_cuts[40];
+  double p = 1.0/40.0;
+  double q = 39.0/40.0;
+
+  for (int i=0; i<40; ++i) {
+    z_ciphers[i]=(ciphers[i]-n*p)/sqrt(n*p*q);
+    z_cuts[i]=(cuts[i]-n*p)/sqrt(n*p*q);
+  }
+
+  std::cout << "z_ciphers:";
+  for (int i=0; i<40; ++i) {
+    std::cout << " " << z_ciphers[i];
+  }
+  std::cout << std::endl;
+
+  std::cout << "z_cuts:";
+  for (int i=0; i<40; ++i) {
+    std::cout << " " << z_cuts[i];
+  }
+  std::cout << std::endl;
+
+}
 
 int main(int argc, char *argv[])
 {
@@ -616,39 +742,6 @@ int main(int argc, char *argv[])
   std::cout << "de text: " << decrypter.text() << " (ok: " << ok << ")" << std::endl;
 
 
-  Deck spin(deck40);
-  int ciphers[40],cuts[40];
-  for (int i=0; i<40; ++i) {
-    ciphers[i]=0;
-    cuts[i]=0;
-  }
-  int n = 100000000;
-  for (int i=0; i<n; ++i) {
-    ++ciphers[spin.cipherPad().order];
-    ++cuts[spin.cutPad().order];
-    spin.pseudoShuffle(Card((spin.cutPad().order+(i%10))%40));
-  }
-
-  double z_ciphers[40],z_cuts[40];
-  double p = 1.0/40.0;
-  double q = 39.0/40.0;
-
-  for (int i=0; i<40; ++i) {
-    z_ciphers[i]=(ciphers[i]-n*p)/sqrt(n*p*q);
-    z_cuts[i]=(cuts[i]-n*p)/sqrt(n*p*q);
-  }
-
-  std::cout << "z_ciphers:";
-  for (int i=0; i<40; ++i) {
-    std::cout << " " << z_ciphers[i];
-  }
-  std::cout << std::endl;
-
-  std::cout << "z_cuts:";
-  for (int i=0; i<40; ++i) {
-    std::cout << " " << z_cuts[i];
-  }
-  std::cout << std::endl;
 
   return 0;  
 
