@@ -190,6 +190,7 @@ std::ostream& operator<<(std::ostream &out, const std::vector<Card> &cards) {
   return out;
 }
 
+
 struct Deck {
   std::vector<Card> cards;
   int modulus() const { return cards.size() == 10 ? 10 : 40; }
@@ -250,6 +251,37 @@ struct Deck {
 
   const Card &cutPad() const {
     return second();
+  }
+
+  void mix(const Card &plainCard) {
+    Card cut = addMod(cutPad(),plainCard);
+    pseudoShuffle(cut);
+  }
+
+  void unmix(const Card &plain) {
+    std::vector<Card> temp(cards.size());
+    int bottom = cards.size();
+    int top = -1;
+    for (int i=cards.size()-1; i >= 0; --i) {
+      if (i % 2 == 0) {
+	--bottom;
+	temp[i]=cards.at(bottom);
+      } else {
+	++top;
+	temp[i]=cards.at(top);
+      }
+    }
+
+    Card cut = temp[0];
+    Card pad = subMod(cut,plain);
+
+    auto loc = std::find(std::begin(temp), std::end(temp), pad);
+    int oldSecondLoc = (loc != std::end(temp)) ? loc-std::begin(temp) : -1;
+    int cutloc = (oldSecondLoc + cards.size()-1) % cards.size();
+
+    std::copy(std::begin(temp), std::begin(temp)+(cutloc),
+	      std::end(cards)-(cutloc));
+    std::copy(std::begin(temp)+(cutloc),std::end(temp),std::begin(cards));
   }
 
   void pseudoShuffle(const Card &cut) {
@@ -315,6 +347,22 @@ struct Deck {
 
 std::ostream& operator<<(std::ostream &out, const Deck &deck) {
   return out << deck.cards;
+}
+
+std::ostream& operator<<(std::ostream &out, const std::set<Deck> &decks) {
+  out << "{";
+  bool first = true;
+  for (auto deck : decks) {
+    if (first) {
+      first = false;
+    } else {
+      out << ",";
+    }
+    out << deck;
+  }
+  out << "}";
+  
+  return out;
 }
 
 struct Messenger {
@@ -530,7 +578,7 @@ struct Messenger {
       }
     }
   }
-  
+
   void encrypt() {
     Deck work(m_key);
     for (int i=0; i<m_plaincards.size(); ++i) {
@@ -577,7 +625,7 @@ const std::string Messenger::UN  ("abcdefghijklmnopqrstuvwxyz<>{} :.\"\\\n");
 const std::string Messenger::DOWN("0123456789ABCDEF+-~@#$%^&|()*/_,?\'\\\n");
 
 
-class Search {
+struct Search {
   int cards;
   int dist;
   bool cycleFound;
@@ -603,28 +651,45 @@ class Search {
     if (dist % 2 == 0) {
       growForward();
     } else {
-      growBackward();
+      growReverse();
     }
     ++dist;
   }
 
-  void growBackward() {
-    // fixme
+  void growReverse() {
+    std::set<Deck> newBoundary;
+    reverse.insert(rboundary.begin(), rboundary.end());
+
+    for (auto deck : rboundary) {
+      for (int card  = 0; card < cards; ++card) {
+	Deck newDeck(deck);
+	newDeck.unmix(Card(card));
+	if (fboundary.find(newDeck) != fboundary.end()) {
+	  cycleFound = true;
+	  std::cout << "reverse unmix " << Card(card) << " from " << deck << " to " << newDeck << std::endl;
+	  return;
+	} else {
+	  newBoundary.insert(newDeck);
+	}
+      }
+    }
+    rboundary.swap(newBoundary);
   }
 
   void growForward() {
     std::set<Deck> newBoundary;
     forward.insert(fboundary.begin(), fboundary.end());
-
+   
     for (auto deck : fboundary) {
       for (int card  = 0; card < cards; ++card) {
 	Deck newDeck(deck);
-	newDeck.pseudoShuffle(Card(card));
+	newDeck.mix(Card(card));
 	if (rboundary.find(newDeck) != rboundary.end()) {
 	  cycleFound = true;
+	  std::cout << "forward mix " << Card(card) << " from " << deck << " to " << newDeck << std::endl;
 	  return;
 	} else {
-	  newBoundary.insert(deck);
+	  newBoundary.insert(newDeck);
 	}
       }
     }
@@ -632,6 +697,32 @@ class Search {
   }
   
 };
+
+void test_mix() {
+  int n=10;
+  Deck deck(n);
+
+  Card plain(3);
+
+  std::cout << "deck (original):" << deck << std::endl;
+  deck.mix(plain);
+  std::cout << "deck (   mixed):" << deck << std::endl;
+  deck.unmix(plain);
+  std::cout << "deck ( unmixed):" << deck << std::endl;
+  assert(deck == Deck(n));
+}
+
+void test_cycle() {
+  int n=40;
+  Search search(n);
+
+  while (!search.cycleFound) {
+    search.grow();
+    std::cout << "search dist = " << search.dist << std::endl;
+  }
+
+  std::cout << "cycle found length = " << search.dist << std::endl;
+}
 
 void test_stats() {
   Deck deck40(40);
@@ -741,7 +832,9 @@ int main(int argc, char *argv[])
   decrypter.decode();
   std::cout << "de text: " << decrypter.text() << " (ok: " << ok << ")" << std::endl;
 
+  test_mix();
 
+  test_cycle();
 
   return 0;  
 
