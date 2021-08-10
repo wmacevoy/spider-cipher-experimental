@@ -343,6 +343,10 @@ struct Deck {
     }
     return true;
   }
+
+  bool operator!=(const Deck &deck) const {
+    return ! (*this == deck);
+  }
 };
 
 std::ostream& operator<<(std::ostream &out, const Deck &deck) {
@@ -628,26 +632,26 @@ const std::string Messenger::DOWN("0123456789ABCDEF+-~@#$%^&|()*/_,?\'\\\n");
 struct Search {
   int cards;
   int dist;
-  bool cycleFound;
-  bool intersects;
+  bool found;
   std::set<Deck> forward,fboundary;
   std::set<Deck> reverse,rboundary;
+  std::vector<Card> path;
+  Deck from;
+  Deck to;
 
-  Search(int _cards) {
-    cards=_cards;
+  Search(const Deck &_from, const Deck &_to) : from(_from), to(_to) {
+    cards=from.cards.size();
     dist=0;
-    cycleFound=false;
+    found=false;
     forward.clear();
     reverse.clear();
     fboundary.clear();
     rboundary.clear();
-    fboundary.insert(Deck(cards));
-    rboundary.insert(Deck(cards));      
+    fboundary.insert(from);
+    rboundary.insert(to);
   }
 
   void grow() {
-    if (cycleFound) return;
-
     if (dist % 2 == 0) {
       growForward();
     } else {
@@ -656,17 +660,34 @@ struct Search {
     ++dist;
   }
 
+  void find() {
+    do {
+      grow();
+    } while (!found);
+  }
+
   void growReverse() {
     std::set<Deck> newBoundary;
     reverse.insert(rboundary.begin(), rboundary.end());
 
     for (auto deck : rboundary) {
-      for (int card  = 0; card < cards; ++card) {
+      for (int order  = 0; order < cards; ++order) {
+	Card card(order);
 	Deck newDeck(deck);
-	newDeck.unmix(Card(card));
+	newDeck.unmix(card);
 	if (fboundary.find(newDeck) != fboundary.end()) {
-	  cycleFound = true;
-	  std::cout << "reverse unmix " << Card(card) << " from " << deck << " to " << newDeck << std::endl;
+	  found = true;
+	  if (newDeck != from) {
+	    Search recSearch(from,newDeck);
+	    recSearch.find();
+	    path.insert(path.begin(),recSearch.path.begin(),recSearch.path.end());
+	  }
+	  path.push_back(Card(card));
+	  if (deck != to) {
+	    Search recSearch(deck,to);
+	    recSearch.find();
+	    path.insert(path.end(),recSearch.path.begin(),recSearch.path.end());
+	  }
 	  return;
 	} else {
 	  newBoundary.insert(newDeck);
@@ -685,8 +706,18 @@ struct Search {
 	Deck newDeck(deck);
 	newDeck.mix(Card(card));
 	if (rboundary.find(newDeck) != rboundary.end()) {
-	  cycleFound = true;
-	  std::cout << "forward mix " << Card(card) << " from " << deck << " to " << newDeck << std::endl;
+	  found = true;
+	  if (deck != from) {
+	    Search recSearch(from,deck);
+	    recSearch.find();
+	    path.insert(path.begin(),recSearch.path.begin(),recSearch.path.end());
+	  }
+	  path.push_back(Card(card));
+	  if (newDeck != to) {
+	    Search recSearch(newDeck,to);
+	    recSearch.find();
+	    path.insert(path.end(),recSearch.path.begin(),recSearch.path.end());
+	  }
 	  return;
 	} else {
 	  newBoundary.insert(newDeck);
@@ -695,7 +726,6 @@ struct Search {
     }
     fboundary.swap(newBoundary);
   }
-  
 };
 
 void test_mix() {
@@ -714,14 +744,17 @@ void test_mix() {
 
 void test_cycle() {
   int n=40;
-  Search search(n);
-
-  while (!search.cycleFound) {
-    search.grow();
-    std::cout << "search dist = " << search.dist << std::endl;
+  Deck a(n);
+  Deck b(n);
+  Search search(a,b);
+  search.find();
+  std::cout << "path (len=" << search.path.size() << "): " << search.path << std::endl;
+  for (auto card : search.path) {
+    std::cout << a << std::endl;
+    a.mix(card);
   }
-
-  std::cout << "cycle found length = " << search.dist << std::endl;
+  std::cout << a << std::endl;  
+  assert(a == b);
 }
 
 void test_stats() {
