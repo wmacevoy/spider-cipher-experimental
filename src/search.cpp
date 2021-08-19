@@ -1,10 +1,14 @@
+#include <math.h>
 #include "search.h"
+
 
 namespace spider {
   
   Search::Search(const Deck &_from, const Deck &_to) : from(_from), to(_to) {
     cards=from.cards.size();
     dist=0;
+    fdist=0;
+    rdist=0;
     found=0;
     unique = false;
     forward.clear();
@@ -57,12 +61,18 @@ namespace spider {
 	  if (!unique) {
 	    return;
 	  }
-	} else {
+	} else if (reverse.find(newDeck) == reverse.end()) {
 	  newBoundary.insert(newDeck);
+	} else {
+	  std::cout << "collapse " << newDeck << std::endl;
 	}
       }
     }
+    growth = double(newBoundary.size())/double(rboundary.size());
+    std::cout << "reverse growth=" << growth << std::endl;
     rboundary.swap(newBoundary);
+    ++rdist;
+    std::cout << "missing " << pow(cards,rdist)-rboundary.size() << std::endl;
   }
 
   void Search::growForward() {
@@ -89,12 +99,18 @@ namespace spider {
 	  if (!unique) {
 	    return;
 	  }
-	} else {
+	} else if (forward.find(newDeck) == forward.end()) {
 	  newBoundary.insert(newDeck);
+	} else {
+	  std::cout << "collapse " << newDeck << std::endl;
 	}
       }
     }
+    growth = double(newBoundary.size())/double(fboundary.size());
+    std::cout << "forward growth=" << growth << std::endl;
     fboundary.swap(newBoundary);
+    ++fdist;
+    std::cout << "missing " << pow(cards,fdist)-fboundary.size() << std::endl;
   };
 }
 

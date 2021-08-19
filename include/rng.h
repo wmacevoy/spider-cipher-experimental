@@ -14,6 +14,7 @@ namespace spider {
     virtual ~RNG();
   };
 
+  // use /dev/urand
   struct OS_RNG : RNG {
     std::ifstream urand;
     OS_RNG();
@@ -21,6 +22,7 @@ namespace spider {
     uint32_t next_u32();
   };
 
+  // produce 1,2,3,etc.
   struct TEST_RNG : RNG {
     uint32_t m_state;
     TEST_RNG(uint32_t state=0);

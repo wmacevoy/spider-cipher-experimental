@@ -148,4 +148,27 @@ namespace spider {
   
     return out;
   }
+
+  std::istream& operator>>(std::istream &in, std::vector<Card> &cards) {
+    cards.clear();
+    if (in >> std::ws && in.peek() == '[') {
+      char op;
+      in >> op;
+    }
+    while (in >> std::ws && in.peek() != ']') {
+      if (in.peek() == ',') {
+	char comma;
+	in>> comma >> std::ws;
+      }
+      Card card;
+      if (in >> card) {
+	cards.push_back(card);
+      }
+    }
+    if (in >> std::ws && in.peek() == ']') {
+      char cp;
+      in >> cp;
+    }
+    return in;
+  }
 }

@@ -7,27 +7,18 @@
 #include <math.h>
 
 #include "config.h"
-#include "rng.h"
-#include "card.h"
-#include "deck.h"
+#include "messenger.h"
 
 namespace spider {
 
-struct Messenger {
-  Deck m_key;
-  RNG &m_rng;
-  int m_prefixLen;
-  int m_minSuffixLen;
-  int m_mulLen;
-  std::string m_text;
-  std::vector<Card> m_plaincards;
-  std::vector<Card> m_ciphercards;
+  const std::string Messenger::UP  ("ABCDEFGHIJKLMNOPQRSTUVWXYZ[]=~\t;!`\\\n");
+  const std::string Messenger::UN  ("abcdefghijklmnopqrstuvwxyz<>{} :.\"\\\n");
+  const std::string Messenger::DOWN("0123456789ABCDEF+-~@#$%^&|()*/_,?\'\\\n");
 
-  int modulus() const { return m_key.modulus(); }
-  Card addMod(const Card &a, const Card &b) const { return m_key.addMod(a,b); }
-  Card subMod(const Card &a, const Card &b) const { return m_key.subMod(a,b); }  
-  
-  Messenger(RNG &rng,
+  int Messenger::modulus() const { return m_key.modulus(); }
+  Card Messenger::addMod(const Card &a, const Card &b) const { return m_key.addMod(a,b); }
+  Card Messenger::subMod(const Card &a, const Card &b) const { return m_key.subMod(a,b); }  
+  Messenger::Messenger(RNG &rng,
 	    int keyLen,
 	    int prefixLen,
 	    int minSuffixLen,
@@ -39,18 +30,18 @@ struct Messenger {
       m_mulLen(mulLen) {
   }
 
-  const Deck& key() const { return m_key;}
-  void key(const Deck &value) { assert(value.cards.size() == m_key.cards.size()); m_key = value; }
+  const Deck& Messenger::key() const { return m_key;}
+  void Messenger::key(const Deck &value) { assert(value.cards.size() == m_key.cards.size()); m_key = value; }
   
-  const std::string &text() const { return m_text; }
-  void text(const std::string &value) { m_text = value; }
+  const std::string &Messenger::text() const { return m_text; }
+  void Messenger::text(const std::string &value) { m_text = value; }
 
-  const std::vector<Card>& plaincards() const { return m_plaincards; }
-  void plaincards(const std::vector<Card> &value) { m_plaincards = value; }  
-  const std::vector<Card>& ciphercards() const { return m_ciphercards; }
-  void ciphercards(const std::vector<Card> &value) { m_ciphercards = value; }
+  const std::vector<Card>& Messenger::plaincards() const { return m_plaincards; }
+  void Messenger::plaincards(const std::vector<Card> &value) { m_plaincards = value; }  
+  const std::vector<Card>& Messenger::ciphercards() const { return m_ciphercards; }
+  void Messenger::ciphercards(const std::vector<Card> &value) { m_ciphercards = value; }
   
-  void addPrefix() {
+  void Messenger::addPrefix() {
     for (int i=0; i< m_prefixLen; ++i) {
       int order = m_rng.next(0,modulus()-1);
       Card card(order);
@@ -58,7 +49,11 @@ struct Messenger {
     }
   }
 
-  void addSuffix() {
+  void Messenger::addPrefix(const std::vector < Card > &cards) {
+    m_plaincards.insert(m_plaincards.end(),cards.begin(),cards.end());
+  }
+
+  void Messenger::addSuffix() {
     for (int i=0; i<m_minSuffixLen; ++i) {
       Card card((i==0 && modulus() == 10) ? 0 : modulus()-1);
       m_plaincards.push_back(card);
@@ -68,7 +63,7 @@ struct Messenger {
     }
   }
 
-  bool removeSuffix() {
+  bool Messenger::removeSuffix() {
     int suffixLen = 0;
     while (m_plaincards.size() > 0 && m_plaincards[m_plaincards.size()-1].order == modulus()-1) {
       m_plaincards.pop_back();
@@ -81,23 +76,19 @@ struct Messenger {
     return (suffixLen >= m_minSuffixLen);
   }
 
-  void addModPrefix() {
+  void Messenger::addModPrefix() {
     for (int i=m_prefixLen; i<m_plaincards.size(); ++i) {
       m_plaincards[i] = addMod(m_plaincards[i],m_plaincards[i % m_prefixLen]);
     }
   }
 
-  void subModPrefix() {
+  void Messenger::subModPrefix() {
     for (int i=m_prefixLen; i<m_plaincards.size(); ++i) {
       m_plaincards[i] = subMod(m_plaincards[i],m_plaincards[i % m_prefixLen]);
     }
   }
 
-  static const std::string UN;
-  static const std::string DOWN;
-  static const std::string UP;  
-
-  void encode() {
+  void Messenger::encode() {
     if (m_plaincards.size() == 0) {
       addPrefix();
     }
@@ -177,7 +168,7 @@ struct Messenger {
     }
   }
 
-  void decode() {
+  void Messenger::decode() {
     int shift = 0;
     bool lock = true;
     m_text.clear();
@@ -227,7 +218,7 @@ struct Messenger {
     }
   }
 
-  void encrypt() {
+  void Messenger::encrypt() {
     Deck work(m_key);
     for (int i=0; i<m_plaincards.size(); ++i) {
       Card plainCard = m_plaincards[i];
@@ -243,7 +234,7 @@ struct Messenger {
     }
   }
   
-  void decrypt() {
+  void Messenger::decrypt() {
     Deck work(m_key);
     m_plaincards.clear();
     for (int i=0; i<m_ciphercards.size(); ++i) {
@@ -260,11 +251,10 @@ struct Messenger {
     }
   }
 
-  void reset() {
+  void Messenger::reset() {
     m_key.reset();
     m_text.clear();
     m_plaincards.clear();
     m_ciphercards.clear();
   }
-};
 }

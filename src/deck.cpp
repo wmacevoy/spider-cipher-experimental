@@ -23,32 +23,39 @@ namespace spider {
 
   const Card& Deck::after(const Card &card) const {
     int loc = find(card);
+    assert(loc >= 0);
+    int m = modulus();
     do {
-      loc = (loc + 1) % modulus();
+      loc = (loc + 1) % m;
     } while (cards[loc].order >= 40);
     return cards[loc];
   }
 
-  const Card& Deck::first() const {
-    int loc = 0;
-    while (cards[loc].order >= 40) {
+  const Card& Deck::zth(unsigned z) const {
+    unsigned loc = 0, n = cards.size();
+    for (;;) {
+      while (cards[loc].order >= 40) {
+	++loc;
+	if (++loc == n) { loc = 0; }
+      }
+      if (z == 0) return cards[loc];
+      --z;
       ++loc;
     }
-    return cards[loc];
+  }
+
+  const Card& Deck::first() const {
+    return zth(0);
   }
 
   const Card& Deck::second() const {
-    int loc = 0;
-    while (cards[loc].order >= 40) {
-      ++loc;
-    }
-    ++loc;
-    while (cards[loc].order >= 40) {
-      ++loc;
-    }
-    return cards[loc];
+    return zth(1);
   }
 
+  const Card& Deck::third() const {
+    return zth(2);
+  }
+  
   Card Deck::addMod(const Card &a, const Card &b) const {
     return spider::addMod(a,b,modulus());
   }
@@ -58,15 +65,15 @@ namespace spider {
   }
 
   const Card &Deck::cipherPad() const {
-    return after(addMod(first(), Card(modulus() == 10 ? 1 : 11)));
+    return after(addMod(first(), second()));
   }
 
   const Card &Deck::cutPad() const {
-    return second();
+    return third();
   }
 
-  void Deck::mix(const Card &plainCard) {
-    Card cut = addMod(cutPad(),plainCard);
+  void Deck::mix(const Card &plain) {
+    Card cut = addMod(cutPad(),plain);
     pseudoShuffle(cut);
   }
 
@@ -88,8 +95,8 @@ namespace spider {
     Card pad = subMod(cut,plain);
 
     auto loc = std::find(std::begin(temp), std::end(temp), pad);
-    int oldSecondLoc = (loc != std::end(temp)) ? loc-std::begin(temp) : -1;
-    int cutloc = (oldSecondLoc + cards.size()-1) % cards.size();
+    int oldThirdLoc = (loc != std::end(temp)) ? loc-std::begin(temp) : -1;
+    int cutloc = (oldThirdLoc + cards.size()-2) % cards.size();
 
     std::copy(std::begin(temp), std::begin(temp)+(cutloc),
 	      std::end(cards)-(cutloc));

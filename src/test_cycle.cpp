@@ -1,4 +1,5 @@
 #include <iostream>
+#include <math.h>
 #include "gtest/gtest.h"
 #include "deck.h"
 #include "search.h"
@@ -6,6 +7,29 @@
 using namespace std;
 using namespace spider;
 
+TEST(Search,Forward) {
+  int n=40;
+  Deck a(n);
+  Deck b(n);
+  Search search(a,b);
+  search.unique = true;
+  while (search.fdist < 5) {
+    search.growForward();
+    ASSERT_EQ(search.fboundary.size(),pow(40,search.fdist));    
+  }
+}
+
+TEST(Search,Reverse) {
+  int n=40;
+  Deck a(n);
+  Deck b(n);
+  Search search(a,b);
+  search.unique = true;
+  while (search.rdist < 6) {
+    search.growReverse();
+    ASSERT_EQ(search.rboundary.size(),pow(40,search.rdist));
+  }
+}
 TEST(Search,Cycle) {
   int n=40;
   Deck a(n);
@@ -20,6 +44,7 @@ TEST(Search,Cycle) {
   }
   std::cout << a << std::endl;  
   ASSERT_EQ(a,b);
+  std::cout << "cycle test done." << std::endl;
 }
 
 int main(int argc, char** argv) {
