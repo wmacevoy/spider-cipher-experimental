@@ -105,27 +105,16 @@ namespace spider {
     std::string name;
     int order;
     char ch;
-    in >> std::ws;
-    while (!!in && in.peek() != '(') {
-      in >> ch;
+    while (name.length() < 32 && in >> std::ws && in.peek() != '(' && in >> ch) {
       name.push_back(ch);
     }
-    if (!in || in.peek() != '(') {
-	in.setstate(std::ios::failbit);
-	return in;
+    if (in >> std::ws && in.peek() == '(' && in >> ch >> order >> std::ws && in.peek() == ')') {
+      card.order = order;
+      if (card.name() == name) {
+	return in; // ok;
+      }
     }
-    in >> ch;
-    in >> order >> std::ws;
-    if (!in || in.peek() != ')') {
-	in.setstate(std::ios::failbit);
-	return in;
-    }
-
-    card.order = order;
-    if (card.name() != name) {
-	in.setstate(std::ios::failbit);
-	return in;
-    }
+    in.setstate(std::ios::failbit);
     return in;
   }
   

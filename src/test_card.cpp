@@ -6,19 +6,25 @@ using namespace std;
 using namespace spider;
 
 static void io(const char *name, int order) {
-  std::ostringstream oss;
-  oss << name << "(" << order << ")";
+  for (int ws=0; ws<2; ++ws) {
+    std::ostringstream oss1,oss2,oss3;
+    if (ws) {
+      oss1 << " " << name << " ( " << order << " ) ";
+    } else {
+      oss1 << name << "(" << order << ")";    
+    }
+    oss2 << name << "(" << order << ")";
 
-  std::istringstream iss(oss.str());
+    std::istringstream iss(oss1.str());
 
-  Card card;
-  iss >> card;
-  ASSERT_TRUE(iss);
-  ASSERT_EQ(card.order,order);
+    Card card;
+    iss >> card;
+    ASSERT_TRUE(iss) << " ws=" << ws << std::endl;
+    ASSERT_EQ(card.order,order) << " ws=" << ws << std::endl;
 
-  std::ostringstream oss2;
-  oss2 << card;
-  ASSERT_EQ(oss2.str(),oss.str());
+    oss3 << card;
+    ASSERT_EQ(oss2.str(),oss3.str()) << " ws=" << ws << std::endl;
+  }
 }
 
 TEST(Card,Jokers) {
