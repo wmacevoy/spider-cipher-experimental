@@ -20,6 +20,7 @@ static void io(const char *name, int order) {
     Card card;
     iss >> card;
     ASSERT_TRUE(iss) << " ws=" << ws << std::endl;
+    ASSERT_EQ(iss.peek(),(ws) ? ' ' : -1) << " ws=" << ws << std::endl;
     ASSERT_EQ(card.order,order) << " ws=" << ws << std::endl;
 
     oss3 << card;
@@ -63,6 +64,50 @@ TEST(Card,Names) {
   io("AJ",52);
   io("BJ",53);
 }
+
+TEST(Card,Vec0) {
+  std::string text="[]";
+  std::vector<Card> cards;
+  std::istringstream iss(text);
+  std::vector<Card> inCards;
+  ASSERT_TRUE(iss >> inCards);
+  ASSERT_EQ(cards,inCards);
+  std::ostringstream oss;
+  oss << cards;
+  ASSERT_EQ(text,oss.str());
+}
+
+TEST(Card,Vec1) {
+  std::string text="[3H(23)]";
+  std::vector<Card> cards;
+  cards.push_back(Card(23));
+  std::istringstream iss(text);
+  std::vector<Card> inCards;
+  ASSERT_TRUE(iss >> inCards);
+  ASSERT_EQ(cards,inCards);
+  std::ostringstream oss;
+  oss << cards;
+  ASSERT_EQ(text,oss.str());
+}
+
+TEST(Card,Vec2) {
+  std::string text="[3H(23),AC(1),10D(10),9S(39)]";
+  std::vector<Card> cards;
+  
+  cards.push_back(Card(23));
+  cards.push_back(Card(1));
+  cards.push_back(Card(10));
+  cards.push_back(Card(39));
+  
+  std::istringstream iss(text);
+  std::vector<Card> inCards;
+  ASSERT_TRUE(iss >> inCards);
+  ASSERT_EQ(cards,inCards);
+  std::ostringstream oss;
+  oss << cards;
+  ASSERT_EQ(text,oss.str());
+}
+
 
 int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);

@@ -64,12 +64,12 @@ namespace spider {
     return spider::subMod(a,b,modulus());
   }
 
-  const Card &Deck::cipherPad() const {
-    return after(addMod(first(), second()));
+  Card Deck::cipherPad() const {
+    return after(addMod(first(),Card(1)));
   }
-
-  const Card &Deck::cutPad() const {
-    return third();
+  
+  Card Deck::cutPad() const {
+    return after(addMod(second(),Card(39)));
   }
 
   void Deck::mix(const Card &plain) {

@@ -108,7 +108,7 @@ namespace spider {
     while (name.length() < 32 && in >> std::ws && in.peek() != '(' && in >> ch) {
       name.push_back(ch);
     }
-    if (in >> std::ws && in.peek() == '(' && in >> ch >> order >> std::ws && in.peek() == ')') {
+    if (in >> std::ws && in.peek() == '(' && in >> ch >> order >> std::ws && in.peek() == ')' &&  in >> ch) {
       card.order = order;
       if (card.name() == name) {
 	return in; // ok;
@@ -139,25 +139,21 @@ namespace spider {
   }
 
   std::istream& operator>>(std::istream &in, std::vector<Card> &cards) {
+    Card card;
+    char ch;
     cards.clear();
-    if (in >> std::ws && in.peek() == '[') {
-      char op;
-      in >> op;
-    }
-    while (in >> std::ws && in.peek() != ']') {
-      if (in.peek() == ',') {
-	char comma;
-	in>> comma >> std::ws;
-      }
-      Card card;
-      if (in >> card) {
+    if (in >> std::ws && in.peek() == '[' && in >> ch) {
+      while (in >> std::ws && in.peek() != ']' && in >> card) {
 	cards.push_back(card);
+	if (in >> std::ws && in.peek() == ',') {
+	  in >> ch;
+	}
+      }
+      if (in >> std::ws && in.peek() == ']' && in >> ch) {
+	return in; // ok
       }
     }
-    if (in >> std::ws && in.peek() == ']') {
-      char cp;
-      in >> cp;
-    }
+    in.setstate(std::ios::failbit);
     return in;
   }
 }

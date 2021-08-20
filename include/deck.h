@@ -53,12 +53,12 @@ namespace spider {
     // this is what is modulus added to the plain text to obtain the
     // the cipher text; or modulus subtracted from the cipher text to
     // get the plain text.
-    const Card &cipherPad() const;
+    Card cipherPad() const;
 
     // this is the second card (skipping JQK and jokers) of the deck.
     // this is what is modulus added to the plain text to obtain the
     // "cut" card to advance the deck for the next encode/decode step.
-    const Card &cutPad() const;
+    Card cutPad() const;
 
     // apply the "plain text" card to shuffle the deck.
     void mix(const Card &plain);

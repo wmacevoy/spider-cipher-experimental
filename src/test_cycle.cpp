@@ -15,7 +15,8 @@ TEST(Search,Forward) {
   search.unique = true;
   while (search.fdist < 5) {
     search.growForward();
-    ASSERT_EQ(search.fboundary.size(),pow(40,search.fdist));    
+    ASSERT_EQ(search.fboundary.size(),pow(40,search.fdist));
+    std::cout << "fdist = " << search.fdist << std::endl;
   }
 }
 
@@ -25,9 +26,10 @@ TEST(Search,Reverse) {
   Deck b(n);
   Search search(a,b);
   search.unique = true;
-  while (search.rdist < 6) {
+  while (search.rdist < 5) {
     search.growReverse();
     ASSERT_EQ(search.rboundary.size(),pow(40,search.rdist));
+    std::cout << "rdist = " << search.rdist << std::endl;    
   }
 }
 TEST(Search,Cycle) {

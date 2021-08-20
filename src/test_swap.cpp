@@ -6,8 +6,8 @@
 using namespace std;
 using namespace spider;
 
-TEST(Search,Swap) {
-  int n=40;
+TEST(Search,Swap10) {
+  int n=10;
   Deck a(n);
   Deck b(n);
   b.cards[0]=Card(1);
