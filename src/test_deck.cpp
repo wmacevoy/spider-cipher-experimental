@@ -24,27 +24,27 @@ TEST(Deck,Basics) {
     ASSERT_EQ(all.find(Card(i)), i < 52 ? i : -1);
   }
   
-  ASSERT_EQ(toy.forward(0,0),0);
-  ASSERT_EQ(odd.forward(0,1),1);
-  ASSERT_EQ(real.forward(1,1),2);
-  ASSERT_EQ(all.forward(0,50),10);
+  ASSERT_EQ(toy.forward(toy.cards,0,0),0);
+  ASSERT_EQ(odd.forward(odd.cards,0,1),1);
+  ASSERT_EQ(real.forward(real.cards,1,1),2);
+  ASSERT_EQ(all.forward(all.cards,0,50),10);
 
-  ASSERT_EQ(toy.back(0,0),0);
-  ASSERT_EQ(odd.back(0,1),16);
-  ASSERT_EQ(real.back(1,1),0);
-  ASSERT_EQ(all.back(0,50),30);
+  ASSERT_EQ(toy.back(toy.cards,0,0),0);
+  ASSERT_EQ(odd.back(odd.cards,0,1),16);
+  ASSERT_EQ(real.back(real.cards,1,1),0);
+  ASSERT_EQ(all.back(all.cards,0,50),30);
 
   ASSERT_EQ(toy.addMod(Card(0),Card(1)),Card(1));
-  ASSERT_EQ(toy.after(Card(1)),Card(2));
-  ASSERT_EQ(toy.after(Card(9)),Card(0));  
+  ASSERT_EQ(toy.after(toy.cards,Card(1)),Card(2));
+  ASSERT_EQ(toy.after(toy.cards,Card(9)),Card(0));  
   ASSERT_EQ(toy.cipherPad(),Card(2));
   ASSERT_EQ(odd.cipherPad(),Card(2));
-  ASSERT_EQ(real.after(Card(0)),Card(1));
-  ASSERT_EQ(real.after(Card(39)),Card(0));  
+  ASSERT_EQ(real.after(real.cards,Card(0)),Card(1));
+  ASSERT_EQ(real.after(real.cards,Card(39)),Card(0));  
   ASSERT_EQ(real.cipherPad(),Card(2));
   ASSERT_EQ(all.cipherPad(),Card(2));
-  ASSERT_EQ(all.after(Card(0)),Card(1));
-  ASSERT_EQ(all.after(Card(39)),Card(0));
+  ASSERT_EQ(all.after(all.cards,Card(0)),Card(1));
+  ASSERT_EQ(all.after(all.cards,Card(39)),Card(0));
 
   ASSERT_EQ(toy.cutPad(),Card(4));
   ASSERT_EQ(odd.cutPad(),Card(4));
@@ -52,19 +52,13 @@ TEST(Deck,Basics) {
   ASSERT_EQ(all.cutPad(),Card(4));  
 
   for (int i=0; i<40; ++i) {
-    std::cout << __LINE__ << " i = " << i << std::endl;
     if (i < 10) {
       Deck dup(toy);
-    std::cout << __LINE__ << " i = " << i << std::endl;      
       dup.mix(Card(i));
-    std::cout << __LINE__ << " i = " << i << std::endl;      
       ASSERT_FALSE(dup == toy);
-    std::cout << __LINE__ << " i = " << i << std::endl;            
       dup.unmix(Card(i));
-    std::cout << __LINE__ << " i = " << i << std::endl;            
-      ASSERT_TRUE(dup == toy) << "i=" << i;
+      ASSERT_TRUE(dup == toy);
     }
-    std::cout << __LINE__ << " i = " << i << std::endl;    
     if (i < 17 && odd.find(odd.addMod(odd.cutPad(),Card(i))) >= 0) {
       Deck dup(odd);
       dup.mix(Card(i));
@@ -72,7 +66,6 @@ TEST(Deck,Basics) {
       dup.unmix(Card(i));
       ASSERT_TRUE(dup == odd);
     }
-    std::cout << __LINE__ << " i = " << i << std::endl;    
     if (i < 40) {
       Deck dup(real);
       dup.mix(Card(i));
@@ -83,15 +76,16 @@ TEST(Deck,Basics) {
   }
 }
 
-std::vector<Card> expected;
 void io(std::string expect) {
   std::istringstream iss(expect);
+  std::vector<Card> expected;
   expected.clear();
   ASSERT_TRUE(iss >> expected);
   std::ostringstream oss;
   oss << expected;
   ASSERT_EQ(oss.str(),expect);
 }
+
 
 void ps(int n,int k, std::string text) {
   Deck deck(n),expect(n);
@@ -102,6 +96,244 @@ void ps(int n,int k, std::string text) {
   ASSERT_EQ(text,oss.str());
   deck.pseudoShuffle(Card(k));
   ASSERT_EQ(deck, expect);
+}
+
+
+void shuffle(Deck &deck, int a=33, int b=17) {
+  int n=deck.cards.size();
+  for (int i=0; i<n; ++i) {
+    int j=i+((a*i+b) % (n-i));
+    Card tmp = deck.cards[i];
+    deck.cards[i]=deck.cards[j];
+    deck.cards[j]=tmp;
+  }
+}
+
+TEST(Deck,TestShuffle) {
+  for (auto n : {10, 40, 41, 52, 54}) {
+    Deck a(n);
+    shuffle(a);
+    int counts[n];
+    for (int i=0; i<n; ++i) {
+      counts[i]=0;
+    }
+    for (int i=0; i<a.cards.size(); ++i) {
+      ASSERT_LE(Card(0),a.cards[i]);
+      ASSERT_LT(a.cards[i],Card(n));
+      ++counts[a.cards[i].order];
+    }
+    for (int i=0; i<n; ++i) {
+      ASSERT_EQ(counts[i],1);
+    }
+  }
+}
+
+
+TEST(Deck,Cut) {
+  for (auto n : {10, 40, 41, 52, 54}) {
+    Deck a(n),b(n);
+    shuffle(a);
+    for (int cutLoc=0; cutLoc<n; ++cutLoc) {
+      Deck::cut(a.cards,cutLoc,b.cards);
+      for (int i=0; i<n; ++i) {
+	ASSERT_EQ(b.cards[i],a.cards[(i+cutLoc)%n]);
+      }
+    }
+  }
+}
+
+TEST(Deck,BackFrontShuffle) {
+  for (auto n : {10, 40, 41, 52, 54}) {
+    Deck a(n),b(n);
+    shuffle(a);
+    
+    std::vector<Card> bfShuffle;
+    for (int i=0; i<n; ++i) {
+      if (i % 2 == 0) {
+	bfShuffle.insert(bfShuffle.end(),a.cards[i]);
+      } else {
+	bfShuffle.insert(bfShuffle.begin(),a.cards[i]);
+      }
+    }
+    Deck::backFrontShuffle(a.cards,b.cards);
+
+    ASSERT_EQ(b.cards,bfShuffle);
+  }
+}
+
+TEST(Deck,BackFrontUnshuffle) {
+  for (auto n : {10, 40, 41, 52, 54}) {
+    Deck a(n),b(n),c(n);
+    shuffle(a);
+    Deck::backFrontShuffle(a.cards,b.cards);
+    Deck::backFrontUnshuffle(b.cards,c.cards);
+    ASSERT_EQ(a.cards,c.cards);
+  }
+}
+
+TEST(Deck,Forward) {
+  for (auto n : {10, 40, 41, 52, 54}) {
+    Deck a(n);
+    shuffle(a);
+    
+
+    for (unsigned loc=0; loc<n; ++loc) {
+      for (unsigned delta=0; delta<n; ++delta) {
+	unsigned newLoc = loc;
+	while (a.cards[newLoc].order >= 40) {
+	  newLoc = (newLoc+1) % n;
+	}
+	for (int i=0; i<delta; ++i) {
+	  newLoc = (newLoc+1) % n;
+	  while (a.cards[newLoc].order >= 40) {
+	    newLoc = (newLoc+1) % n;
+	  }
+	}
+	ASSERT_EQ(Deck::forward(a.cards,loc,delta),newLoc);
+      }
+    }
+  }
+}
+
+TEST(Deck,Back) {
+  for (auto n : {10, 40, 41, 52, 54}) {
+    Deck a(n);
+    shuffle(a);
+    
+    for (unsigned loc=0; loc<n; ++loc) {
+      for (unsigned delta=0; delta<n; ++delta) {
+	unsigned newLoc = loc;
+	while (a.cards[newLoc].order >= 40) {
+	  newLoc = (newLoc+(n-1)) % n;
+	}
+	for (int i=0; i<delta; ++i) {
+	  newLoc = (newLoc+(n-1)) % n;
+	  while (a.cards[newLoc].order >= 40) {
+	    newLoc = (newLoc+(n-1)) % n;
+	  }
+	}
+	ASSERT_EQ(Deck::back(a.cards,loc,delta),newLoc);
+      }
+    }
+  }
+}
+
+TEST(Deck,Modulus) {
+  for (auto n : {10, 40, 41, 52, 54}) {
+    Deck a(n);
+    int m = (n == 10) ? 10 : 40;
+    ASSERT_EQ(a.modulus(),m);
+  }
+}
+
+TEST(Deck,Reset) {
+  for (auto n : {10, 40, 41, 52, 54}) {
+    Deck a(n),b(n);
+    shuffle(a);
+    a.reset();
+    ASSERT_EQ(a,b);
+  }
+}
+
+TEST(Deck,Find) {
+  for (auto n : {10, 40, 41, 52, 54}) {
+    Deck a(n);
+    shuffle(a);
+    for (int i=0; i<n; ++i) {
+      int loc = Deck::find(a.cards,Card(i));
+      ASSERT_EQ(a.cards[loc],Card(i));
+    }
+  }
+}
+
+TEST(Deck,After) {
+  for (auto n : {10, 40, 41, 52, 54}) {
+    Deck a(n);
+    for (int i=0; i<n; ++i) {
+      if (a.cards[i].order < a.modulus()) {
+	Card after = Deck::after(a.cards,a.cards[i]);
+	int afterLoc = (i + 1) % n;
+	while (a.cards[afterLoc] >= 40) {
+	  afterLoc = (afterLoc + 1) % n;
+	}
+	ASSERT_EQ(Deck::find(a.cards,after),afterLoc);
+      }
+    }
+  }
+}
+
+TEST(Deck,Before) {
+  for (auto n : {10, 40, 41, 52, 54}) {
+    Deck a(n);
+    for (int i=0; i<n; ++i) {
+      if (a.cards[i].order < a.modulus()) {
+	Card before = Deck::before(a.cards,a.cards[i]);
+	int beforeLoc = (i + (n-1)) % n;
+	while (a.cards[beforeLoc] >= 40) {
+	  beforeLoc = (beforeLoc + (n-1)) % n;
+	}
+	ASSERT_EQ(Deck::find(a.cards,before),beforeLoc);
+      }
+    }
+  }
+}
+
+
+TEST(Deck,Shuffle) {
+  for (auto n : {10, 40, 52, 54}) {
+    Deck a(n),b(n);
+    
+
+    shuffle(a);
+    for (int cutLoc=0; cutLoc<n; ++cutLoc) {
+      Deck::cut(a.cards,cutLoc,b.cards);
+      for (int i=0; i<n; ++i) {
+	ASSERT_EQ(b.cards[i],a.cards[(i+cutLoc)%n]);
+      }
+    }
+  }
+}
+
+
+TEST(Deck,Unmix) {
+  int n=10;
+  Deck a(n);
+  Deck b(n);
+
+  ASSERT_EQ(a,b);
+
+  Card card1(1);
+  b.mix(card1);
+  b.unmix(card1);  
+  ASSERT_EQ(a,b);
+
+  a.mix(card1);
+  b.mix(card1);
+
+  Card card2(2);
+  b.mix(card2);
+  b.unmix(card2);
+  ASSERT_EQ(a,b);
+}
+
+TEST(Deck,Mix) {
+  int n=40;
+  for (int len=1; len<10; ++len) {
+    std::vector<Deck> decks;
+    decks.push_back(Deck(n));
+    std::vector<Card> path;
+    for (int i=0; i<len; ++i) {
+      path.push_back(Card((i*31+17)%n));
+      decks.push_back(decks[decks.size()-1]);
+      decks[decks.size()-1].mix(path[path.size()-1]);
+    }
+
+    for (int i=len-1; i>=0; --i) {
+      Deck deck(decks[i+1]);
+      deck.unmix(path[i]);
+      ASSERT_EQ(decks[i],deck) << " len=" << len << " i=" << i << std::endl;
+    }
+  }
 }
 
 TEST(Deck10,PseudoShuffle) {

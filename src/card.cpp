@@ -119,12 +119,15 @@ namespace spider {
   }
   
   Card addMod(const Card &a, const Card &b, int n) {
-    return Card((a.order + b.order) % n);
+    int c = a.order + b.order;
+    while (c >= n) { c -= n; }
+    return Card(c);
   }
 
-
   Card subMod(const Card &a, const Card &b, int n) {
-    return Card((a.order + (n-b.order)) % n);
+    int c = a.order - b.order;
+    while (c < 0) { c += n; }
+    return Card(c);
   }
 
   std::ostream& operator<<(std::ostream &out, const std::vector<Card> &cards) {

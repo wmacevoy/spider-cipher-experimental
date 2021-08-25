@@ -31,32 +31,24 @@ namespace spider {
 
     // replace with ordered deck (see card for order, it is not normal)
     void reset();
+    
     Deck(size_t size);
   
     int find(const Card &card) const;
     static int find(const std::vector<Card> &cards, const Card &card);
 
     // move forward delta card skipping J,Q,K
-    unsigned forward(unsigned index, unsigned delta) const;
+    static unsigned forward(const std::vector<Card> &cards, unsigned index, unsigned delta);
 
     // move back delta card skipping J,Q,K
-    unsigned back(unsigned index, unsigned delta) const;
+    static unsigned back(const std::vector<Card> &cards, unsigned index, unsigned delta);
     
     // find card after given card, skipping J,Q,K and jokers.
-    const Card& after(const Card &card) const;
+    static const Card& after(const std::vector<Card> &cards, const Card &card);
 
     // find card after given card, skipping J,Q,K and jokers.
-    const Card& before(const Card &card) const;
+    static const Card& before(const std::vector<Card> &cards, const Card &card);
 
-    // first card, skipping J,Q,K and jokers.    
-    const Card& first() const;
-
-    // second card, skipping J,Q,K and jokers.        
-    const Card& second() const;
-
-    // third card, skipping J,Q,K and jokers.        
-    const Card& third() const;
-    
     Card addMod(const Card &a, const Card &b) const;
 
     Card subMod(const Card &a, const Card &b) const;
@@ -85,7 +77,11 @@ namespace spider {
     // not reveal any information the user does not already know.
     void unmix(const Card &plain);
 
+    static void cut(const std::vector<Card> &in, int cutLoc, std::vector<Card> &out);
+    static void backFrontShuffle(const std::vector<Card> &in, std::vector<Card> &out);
+    static void backFrontUnshuffle(const std::vector<Card> &in, std::vector<Card> &out);    
     // apply the core shuffle
+    
     void pseudoShuffle(const Card &cut);
 
     bool operator<(const Deck &deck) const;

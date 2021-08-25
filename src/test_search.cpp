@@ -16,7 +16,9 @@ TEST(Search,Forward) {
     Deck a(n);
     Deck b(n);
     for (int i=0; i<len; ++i) {
+      std::cout << b << ".mix(" << Card(i) << ")=";
       b.mix(path[i]);
+      std::cout << b << std::endl;
     }
 
     Search search(a,b);

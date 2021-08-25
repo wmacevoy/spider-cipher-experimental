@@ -1,0 +1,30 @@
+#!/bin/bash
+
+ok=true
+
+if ! make all
+then
+  ok = false
+  echo "build failed."
+fi
+
+for t in bin/test_*
+do
+  echo $t
+  if time $t
+  then
+    echo "$t passed."
+  else
+    echo "$t failed."
+    ok=false
+  fi
+done
+
+if [ "$ok" = "true" ]
+then
+	echo "all tests passed."
+	exit 0
+else
+	echo "some tests failed."
+	exit 1
+fi

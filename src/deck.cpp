@@ -6,7 +6,7 @@
 
 namespace spider {
 
-  unsigned Deck::forward(unsigned loc, unsigned delta) const {
+  unsigned Deck::forward(const std::vector<Card> &cards, unsigned loc, unsigned delta) {
     unsigned n = cards.size();
     for (;;) {
       while (cards[loc].order >= 40) {
@@ -20,7 +20,7 @@ namespace spider {
     }
   }
 
-  unsigned Deck::back(unsigned loc, unsigned delta) const {
+  unsigned Deck::back(const std::vector<Card> &cards, unsigned loc, unsigned delta) {
     unsigned n = cards.size();
     for (;;) {
       while (cards[loc].order >= 40) {
@@ -36,7 +36,9 @@ namespace spider {
 
   int Deck::modulus() const { return cards.size() == 10 ? 10 : 40; }
   void Deck::reset() {
-    sort(cards.begin(),cards.end());
+    for (size_t i=0; i<cards.size(); ++i) {
+      cards[i]=Card(i);
+    }
   }
 
   Deck::Deck(size_t size) : cards(size) {
@@ -54,16 +56,17 @@ namespace spider {
     return find(cards,card);
   }
 
-  const Card& Deck::after(const Card &card) const {
-    int loc = find(card);
+  const Card& Deck::after(const std::vector<Card> &cards, const Card &card) {
+    int loc = find(cards,card);
     assert(loc >= 0);
-    return cards[forward(loc,1)];
+    return cards[forward(cards,loc,1)];
   }
 
-  const Card& Deck::before(const Card &card) const {
-    int loc = find(card);
+  const Card& Deck::before(const std::vector<Card> &cards,const Card &card) {
+    int loc = find(cards,card);
     assert(loc >= 0);
-    return cards[back(loc,1)];
+    int beforeLoc = back(cards,loc,1);
+    return cards[beforeLoc];
   }
 
   Card Deck::addMod(const Card &a, const Card &b) const {
@@ -75,7 +78,11 @@ namespace spider {
   }
 
   Card Deck::cipherPad() const {
-    return after(addMod(forward(0,CIPHER_ZTH),Card(CIPHER_OFFSET)));
+    Card zth=forward(cards,0,CIPHER_ZTH);
+    Card mark=addMod(zth,Card(CIPHER_OFFSET));
+    int markLoc = find(cards,mark);
+    int cipherPadLoc = forward(cards,markLoc,1);
+    return cards[cipherPadLoc];
   }
   
   Card Deck::cutPad() const {
@@ -101,8 +108,13 @@ namespace spider {
     //return zth(5); // 7.68
     // return zth(6); // 7.2
     //return zth(7); // 8.5
-    // return zth(2); // 8.5     
-    return after(addMod(forward(0,CUT_ZTH),Card(CUT_OFFSET)));
+    // return zth(2); // 8.5
+
+    Card zth=forward(cards,0,CUT_ZTH);
+    Card mark=addMod(zth,Card(CUT_OFFSET));
+    int markLoc = find(cards,mark);
+    int cutPadLoc = forward(cards,markLoc,1);
+    return cards[cutPadLoc];
   }
 
   void Deck::mix(const Card &plain) {
@@ -111,66 +123,72 @@ namespace spider {
   }
 
 
-  void Deck::unmix(const Card &plain) {
+  void Deck::unmix(const Card &plainCard) {
     std::vector<Card> temp(cards.size());
-    int bottom = cards.size();
-    int top = -1;
-    for (int i=cards.size()-1; i >= 0; --i) {
-      if (i % 2 == 0) {
-	--bottom;
-	temp[i]=cards.at(bottom);
-      } else {
-	++top;
-	temp[i]=cards.at(top);
-      }
-    }
+    backFrontUnshuffle(cards,temp);
 
-    Card cut = temp[0];
-    Card pad = subMod(cut,plain);
-    Card beforePad = before(pad);
-    Card zthCard = subMod(beforePad,CUT_OFFSET);
-    int zthLoc = find(temp,zthCard);
-    int topLoc = back(zthLoc,CUT_ZTH);
-					
-    std::copy(std::begin(temp), std::begin(temp)+(topLoc),
-	      std::end(cards)-(topLoc));
-    std::copy(std::begin(temp)+(topLoc),std::end(temp),std::begin(cards));
+    Card cutCard = temp[0];
+    Card cutPad = subMod(cutCard,plainCard);
+    int cutPadLoc = find(temp,cutPad);
+    int markLoc = back(temp,cutPadLoc,1);
+    Card mark = temp[markLoc];
+    Card zth=subMod(mark,Card(CUT_OFFSET));
+    int zthLoc = find(temp,zth);
+    int topLoc = back(temp,zthLoc,CUT_ZTH);
+
+    cut(temp,topLoc,cards);
   }
 
-  void Deck::pseudoShuffle(const Card &cut) {
-    std::vector<Card> temp(cards.size());
+  void Deck::cut(const std::vector<Card> &in, int cutLoc, std::vector<Card> &out) {
+    out.resize(in.size());
+    // copy bottom of deck (starting from cutLoc) to top of deck
+    std::copy(std::begin(in)+(cutLoc),std::end(in),std::begin(out));
+    // copy top of deck (up to but excluding cut card) to bottom of deck
+    std::copy(std::begin(in), std::begin(in)+(cutLoc),
+	      std::end(out)-(cutLoc));
 
-    // find cut card
-    int cutloc = find(cut);
-
-    // copy top of deck (up to but excluding cut card) to bottom of deck (move to temp)
-    std::copy(std::begin(cards), std::begin(cards)+(cutloc),
-	      std::end(temp)-(cutloc));
-    std::copy(std::begin(cards)+(cutloc),std::end(cards),std::begin(temp));
-
-    if (DEBUG >= 10) {
-      std::cout << "cut " << cut << ":" << std::endl;
-      std::cout << " before: " << cards << std::endl;
-      std::cout << "  after: " << temp << std::endl;
-    }
-
-    size_t bottom = cards.size()/2;
-    size_t top = bottom-1;
-    for (size_t i=0; i<cards.size(); ++i) {
+  }
+  
+  void Deck::backFrontShuffle(const std::vector<Card> &in, std::vector<Card> &out) {
+    out.resize(in.size());
+    size_t back = in.size()/2;
+    size_t front = back-1;
+    for (size_t i=0; i<in.size(); ++i) {
       if (i % 2 == 0) {
-	cards.at(bottom)=temp[i];
-	++bottom;
+	out[back]=in[i];
+	++back;
       } else {
-	cards.at(top)=temp[i];
-	--top;
+	out[front]=in[i];
+	--front;
       }
     }
-
-    if (DEBUG >= 10) {
-      std::cout << "shuffle:" << std::endl;
-      std::cout << " before: " << temp << std::endl;
-      std::cout << "  after: " << cards << std::endl;
+  }
+  
+  void Deck::backFrontUnshuffle(const std::vector<Card> &in, std::vector<Card> &out) {
+    out.resize(in.size());
+    int back = in.size();
+    int front = -1;
+    for (int i=in.size()-1; i >= 0; --i) {
+      if (i % 2 == 0) {
+	--back;
+	out[i]=in[back];
+      } else {
+	++front;
+	out[i]=in[front];
+      }
     }
+  }
+
+
+  void Deck::pseudoShuffle(const Card &cutCard) {
+    std::vector<Card> temp(cards.size());
+
+    int cutLoc = find(cutCard);
+    assert(cutLoc >= 0);
+    cut(cards,cutLoc,temp);
+    assert(temp[0] == cutCard);
+
+    backFrontShuffle(temp,cards);
   }
 
   bool Deck::operator<(const Deck &deck) const {

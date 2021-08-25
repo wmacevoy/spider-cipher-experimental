@@ -108,6 +108,42 @@ TEST(Card,Vec2) {
   ASSERT_EQ(text,oss.str());
 }
 
+TEST(Card,AddMod) {
+  for (auto n : {10, 40, 41, 52, 54}) {  
+    for (auto m : {10, 40}) {
+      for (int i=0; i<n; ++i) {
+	for (int j=0; j<n; ++j) {
+	  Card a(i);
+	  Card b(j);
+	  Card c((i+j) % m);
+	  ASSERT_EQ(a.order,i);
+	  ASSERT_EQ(b.order,j);
+	  ASSERT_EQ(addMod(a,b,m),c);
+	}
+      }
+    }
+  }
+}
+
+TEST(Card,SubMod) {
+  for (auto n : {10, 40, 41, 52, 54}) {  
+    for (auto m : {10, 40}) {
+      for (int i=0; i<n; ++i) {
+	for (int j=0; j<n; ++j) {
+	  Card a(i);
+	  Card b(j);
+	  int ans = i-j;
+	  while (ans < 0) { ans += m; }
+	  Card c(ans);
+	  ASSERT_EQ(a.order,i);
+	  ASSERT_EQ(b.order,j);
+	  ASSERT_EQ(subMod(a,b,m),c);
+	}
+      }
+    }
+  }
+}
+
 
 int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
