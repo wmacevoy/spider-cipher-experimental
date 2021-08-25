@@ -10,24 +10,22 @@ namespace spider {
   
   struct Search {
     int cards;
-    int dist,fdist,rdist;
-    int found;
-    bool unique;
+    int maxDist,dist,fdist,rdist;
+    int duplicates;
+    double growth;
+    bool all;
     std::set<Deck> forward,fboundary;
     std::set<Deck> reverse,rboundary;
-    std::vector<Card> path;
+    std::vector < std::vector<Card> > paths;
+
     Deck from;
     Deck to;
-    double growth;
 
     Search(const Deck &_from, const Deck &_to);
-
+    bool done() const;
     void grow();
-
     void find();
-
     void growReverse();
-
     void growForward();
   };
 

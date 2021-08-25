@@ -9,6 +9,10 @@ namespace spider {
 
   struct Deck {
     std::vector<Card> cards;
+    static const int CIPHER_ZTH = 0;
+    static const int CIPHER_OFFSET = 1;
+    static const int CUT_ZTH = 4;
+    static const int CUT_OFFSET = 39;
 
     //
     // Modulus is 10 or 40.
@@ -23,17 +27,26 @@ namespace spider {
     //
     int modulus() const;
 
+    int skip(int index, int delta);
+
     // replace with ordered deck (see card for order, it is not normal)
     void reset();
     Deck(size_t size);
   
     int find(const Card &card) const;
+    static int find(const std::vector<Card> &cards, const Card &card);
 
-    // find zth card skipping J,Q,K and jokers (zth starts with 0)
-    const Card& zth(unsigned n) const;
+    // move forward delta card skipping J,Q,K
+    unsigned forward(unsigned index, unsigned delta) const;
 
+    // move back delta card skipping J,Q,K
+    unsigned back(unsigned index, unsigned delta) const;
+    
     // find card after given card, skipping J,Q,K and jokers.
     const Card& after(const Card &card) const;
+
+    // find card after given card, skipping J,Q,K and jokers.
+    const Card& before(const Card &card) const;
 
     // first card, skipping J,Q,K and jokers.    
     const Card& first() const;

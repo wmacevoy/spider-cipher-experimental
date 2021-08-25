@@ -3,14 +3,15 @@
 
 
 namespace spider {
-  
   Search::Search(const Deck &_from, const Deck &_to) : from(_from), to(_to) {
     cards=from.cards.size();
     dist=0;
+    maxDist = -1;
     fdist=0;
     rdist=0;
-    found=0;
-    unique = false;
+    duplicates=0;
+    growth=0;
+    all = false;
     forward.clear();
     reverse.clear();
     fboundary.clear();
@@ -28,12 +29,16 @@ namespace spider {
     ++dist;
   }
 
+  bool Search::done() const {
+    if (!all && paths.size() > 0) return true;
+    if (maxDist >= 0 && dist >= maxDist) return true;
+    return false;
+  }
+
   void Search::find() {
-    do {
-      std::cout << "searching dist = " << dist << "..." << std::endl;
+    while (!done()) {
       grow();
-      std::cout << "searching dist = " << dist << " found " << found << "." << std::endl;
-    } while (found == 0);
+    }
   }
 
   void Search::growReverse() {
@@ -46,33 +51,35 @@ namespace spider {
 	Deck newDeck(deck);
 	newDeck.unmix(card);
 	if (fboundary.find(newDeck) != fboundary.end()) {
-	  ++found;
+	  std::cout << "path reverse found." << std::endl;
+	  paths.push_back(std::vector<Card>());
+	  std::vector<Card> &path = paths[paths.size()-1];
 	  if (newDeck != from) {
 	    Search recSearch(from,newDeck);
 	    recSearch.find();
-	    path.insert(path.begin(),recSearch.path.begin(),recSearch.path.end());
+	    std::vector<Card> &toHere = recSearch.paths[0];
+	    path.insert(path.begin(),toHere.begin(),toHere.end());
 	  }
-	  path.push_back(Card(card));
+	  path.push_back(card);
 	  if (deck != to) {
 	    Search recSearch(deck,to);
 	    recSearch.find();
-	    path.insert(path.end(),recSearch.path.begin(),recSearch.path.end());
+	    std::vector<Card> &fromHere = recSearch.paths[0];
+	    path.insert(path.end(),fromHere.begin(),fromHere.end());
 	  }
-	  if (!unique) {
+	  if (!all) {
 	    return;
 	  }
 	} else if (reverse.find(newDeck) == reverse.end()) {
 	  newBoundary.insert(newDeck);
 	} else {
-	  std::cout << "collapse " << newDeck << std::endl;
+	  ++duplicates;
 	}
       }
     }
     growth = double(newBoundary.size())/double(rboundary.size());
-    std::cout << "reverse growth=" << growth << std::endl;
     rboundary.swap(newBoundary);
     ++rdist;
-    std::cout << "missing " << pow(cards,rdist)-rboundary.size() << std::endl;
   }
 
   void Search::growForward() {
@@ -84,33 +91,35 @@ namespace spider {
 	Deck newDeck(deck);
 	newDeck.mix(Card(card));
 	if (rboundary.find(newDeck) != rboundary.end()) {
-	  ++found;
+	  std::cout << "path forward found." << std::endl;
+	  paths.push_back(std::vector<Card>());
+	  std::vector<Card> &path=paths[paths.size()-1];
 	  if (deck != from) {
 	    Search recSearch(from,deck);
 	    recSearch.find();
-	    path.insert(path.begin(),recSearch.path.begin(),recSearch.path.end());
+	    std::vector<Card> &toHere=recSearch.paths[0];
+	    path.insert(path.begin(),toHere.begin(),toHere.end());
 	  }
-	  path.push_back(Card(card));
+	  path.push_back(card);
 	  if (newDeck != to) {
 	    Search recSearch(newDeck,to);
 	    recSearch.find();
-	    path.insert(path.end(),recSearch.path.begin(),recSearch.path.end());
+	    std::vector<Card> &fromHere=recSearch.paths[0];
+	    path.insert(path.end(),fromHere.begin(),fromHere.end());
 	  }
-	  if (!unique) {
+	  if (!all) {
 	    return;
 	  }
 	} else if (forward.find(newDeck) == forward.end()) {
 	  newBoundary.insert(newDeck);
 	} else {
-	  std::cout << "collapse " << newDeck << std::endl;
+	  ++duplicates;
 	}
       }
     }
     growth = double(newBoundary.size())/double(fboundary.size());
-    std::cout << "forward growth=" << growth << std::endl;
     fboundary.swap(newBoundary);
     ++fdist;
-    std::cout << "missing " << pow(cards,fdist)-fboundary.size() << std::endl;
   };
 }
 

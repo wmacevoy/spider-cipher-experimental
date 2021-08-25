@@ -16,8 +16,9 @@ TEST(Search,Swap10) {
   std::cout << "b: " << b << std::endl;  
   Search search(a,b);
   search.find();
-  std::cout << "swap path (len=" << search.path.size() << "): " << search.path << std::endl;
-  for (auto card : search.path) {
+  auto path = search.paths[0];
+  std::cout << "swap path (len=" << path.size() << "): " << path << std::endl;
+  for (auto card : path) {
     std::cout << a << std::endl;
     a.mix(card);
   }
