@@ -7,6 +7,12 @@
 #include "deck.h"
 
 namespace spider {
+  struct SearchSetCmp {
+    inline bool operator() (const Deck &a, const Deck &b) const {
+      return equivalent(a,b) < 0;
+    }
+  };
+  typedef std::set<Deck,SearchSetCmp> SearchSet;
   
   struct Search {
     int cards;
@@ -14,8 +20,8 @@ namespace spider {
     int duplicates;
     double growth;
     bool all;
-    std::set<Deck> forward,fboundary;
-    std::set<Deck> reverse,rboundary;
+    SearchSet forward,fboundary;
+    SearchSet reverse,rboundary;
     std::vector < std::vector<Card> > paths;
 
     Deck from;

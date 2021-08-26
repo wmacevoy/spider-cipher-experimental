@@ -3,12 +3,11 @@
 
 
 namespace spider {
+
   Search::Search(const Deck &_from, const Deck &_to) : from(_from), to(_to) {
     cards=from.cards.size();
     dist=0;
     maxDist = -1;
-    fdist=0;
-    rdist=0;
     duplicates=0;
     growth=0;
     all = false;
@@ -26,7 +25,6 @@ namespace spider {
     } else {
       growReverse();
     }
-    ++dist;
   }
 
   bool Search::done() const {
@@ -42,7 +40,7 @@ namespace spider {
   }
 
   void Search::growReverse() {
-    std::set<Deck> newBoundary;
+    SearchSet newBoundary;
     reverse.insert(rboundary.begin(), rboundary.end());
 
     for (auto deck : rboundary) {
@@ -78,11 +76,11 @@ namespace spider {
     }
     growth = double(newBoundary.size())/double(rboundary.size());
     rboundary.swap(newBoundary);
-    ++rdist;
+    ++dist;
   }
 
   void Search::growForward() {
-    std::set<Deck> newBoundary;
+    SearchSet newBoundary;
     forward.insert(fboundary.begin(), fboundary.end());
    
     for (auto deck : fboundary) {
@@ -118,7 +116,7 @@ namespace spider {
     }
     growth = double(newBoundary.size())/double(fboundary.size());
     fboundary.swap(newBoundary);
-    ++fdist;
+    ++dist;
   };
 }
 

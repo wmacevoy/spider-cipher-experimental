@@ -32,8 +32,8 @@ void ps(int n,int k, std::string text) {
 void shuffle(Deck &deck, int a=33, int b=17) {
   int n=deck.cards.size();
   for (int i=0; i<n; ++i) {
-    int m = (i == 0) ? (n == 10 ? 10 : 40) : n-i;
-    int j=i+((a*i+b) % m);
+    //    int m = (i == 0) ? (n == 10 ? 10 : 40) : n-i;
+    int j=i+((a*i+b) % (n-i));
     Card tmp = deck.cards[i];
     deck.cards[i]=deck.cards[j];
     deck.cards[j]=tmp;
@@ -59,6 +59,28 @@ TEST(Deck,TestShuffle) {
   }
 }
 
+TEST(Deck,Equivalent) {
+  for (auto n : {10, 40, 41, 52, 54}) {
+    Deck a(n),b(n),c(n);
+    ASSERT_EQ(equivalent(a,b),0);
+    shuffle(a);
+    shuffle(b);
+    ASSERT_EQ(equivalent(a,b),0);
+    ASSERT_NE(equivalent(a,c),0);
+
+    if (n <= 40) continue;
+    
+    Deck::cut(a.cards,Deck::find(a.cards,Card(n-1)),c.cards);
+    Deck::cut(a.cards,Deck::forward(a.cards,Deck::find(a.cards,Card(n-1)),0),b.cards);
+    ASSERT_NE(c,b);
+    ASSERT_EQ(equivalent(c,b),0);
+    ASSERT_EQ(c.cipherPad(),b.cipherPad());
+    ASSERT_EQ(c.cutPad(),b.cutPad());
+    c.mix(Card(0));
+    b.mix(Card(0));
+    ASSERT_EQ(c,b);
+  }
+}
 
 TEST(Deck,Cut) {
   for (auto n : {10, 40, 41, 52, 54}) {
@@ -248,22 +270,6 @@ TEST(Deck,Unmix) {
   }
 }
 
-int cmp(const Deck &a, const Deck &b) {
-  if (a.cards.size() != b.cards.size()) {
-    return a.cards.size() < b.cards.size() ? -1 : 1;
-  }
-  unsigned a0 = Deck::forward(a.cards,0,0);
-  unsigned b0 = Deck::forward(b.cards,0,0);
-  int n = a.cards.size();
-  for (int i=0; i<n; ++i) {
-    int ai=a.cards[(a0+i) % n].order;
-    int bi=b.cards[(b0+i) % n].order;
-    if (ai != bi) {
-      return (ai < bi) ? -1 : 1;
-    }
-  }
-  return 0;
-}
 
 TEST(Deck,Mix) {
   for (auto n : {10, 40, 41, 52, 54}) {
@@ -280,7 +286,7 @@ TEST(Deck,Mix) {
       for (int i=len-1; i>=0; --i) {
 	Deck deck(decks[i+1]);
 	deck.unmix(path[i]);
-	if (cmp(decks[i],deck) != 0) {
+	if (equivalent(decks[i],deck) != 0) {
 	  Deck a(decks[i]);
 	  Deck b(decks[i+1]);
 	  Deck amix(a);

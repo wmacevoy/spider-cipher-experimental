@@ -5,7 +5,6 @@
 #include "deck.h"
 
 namespace spider {
-
   unsigned Deck::forward(const std::vector<Card> &cards, unsigned loc, unsigned delta) {
     unsigned n = cards.size();
     for (;;) {
@@ -241,4 +240,22 @@ namespace spider {
   
     return out;
   }
+
+  int equivalent(const Deck &a, const Deck &b) {
+    if (a.cards.size() != b.cards.size()) {
+      return a.cards.size() < b.cards.size() ? -1 : 1;
+    }
+    unsigned a0 = Deck::forward(a.cards,0,0);
+    unsigned b0 = Deck::forward(b.cards,0,0);
+    int n = a.cards.size();
+    for (int i=0; i<n; ++i) {
+      int ai=a.cards[(a0+i) % n].order;
+      int bi=b.cards[(b0+i) % n].order;
+      if (ai != bi) {
+	return (ai < bi) ? -1 : 1;
+      }
+    }
+    return 0;
+  }
+  
 }

@@ -74,6 +74,7 @@ double z2_luck(const std::vector< std::vector<int> > &counts) {
 
 void stats(int cards, int trials) {
   Deck deck(cards);
+  int m = deck.modulus();
   OS_RNG rng;
   std::vector<int> ciphers(cards,0);
   std::vector<int> cuts(cards,0);
@@ -90,7 +91,7 @@ void stats(int cards, int trials) {
   
   int n = trials;
 
-  int cipher0=0,cipher1=0,cut0=0,cut1=0;
+  int cipher0=0,cipher1=0,cut0=0,cut1=0,plain=0;
   for (int i=0; i<n; ++i) {
     cipher1=deck.cipherPad().order;
     cut1=deck.cutPad().order;
@@ -103,7 +104,12 @@ void stats(int cards, int trials) {
     }
     cipher0=cipher1;
     cut0=cut1;
-    deck.mix(Card((i < 10 || i % 2 == 0) ? rng.next(0,cards-1) : cards-1));
+    if (i < 10 || i%2 == 0) {
+      plain = rng.next(0,m-1);
+    } else {
+      plain = (plain + (m-1)) % m;
+    }
+    deck.mix(plain);
   }
 
   std::vector<double> z_ciphers(cards);

@@ -7,6 +7,7 @@
 
 namespace spider {
 
+
   struct Deck {
     std::vector<Card> cards;
     static const int CIPHER_ZTH = 0;
@@ -89,5 +90,5 @@ namespace spider {
 
   std::ostream& operator<<(std::ostream &out, const Deck &deck);
   std::ostream& operator<<(std::ostream &out, const std::set<Deck> &decks);
-
+  int equivalent(const Deck &a, const Deck &b);
 }
