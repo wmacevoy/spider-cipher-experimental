@@ -71,34 +71,6 @@ double z2_luck(const std::vector< std::vector<int> > &counts) {
   return z2;
 }
 
-double z3_luck(const std::vector< std::vector< std::vector < int> > > &counts) {
-  int n3=0;
-  for (int i=0; i<counts.size(); ++i) {
-    for (int j=0; j<counts[i].size(); ++j) {
-      for (int k=0; k<counts[i][j].size(); ++k) {      
-	n3 += counts[i][j][k];
-      }
-    }
-  }
-  double p = 1.0/pow(double(counts.size()),3);
-  double q = 1-p;
-  double mu = n3*p;
-  double inv_sigma = 1/sqrt(n3*p);
-  double z3=0;
-
-  for (int i=0; i<counts.size(); ++i) {
-    for (int j=0; j<counts[i].size(); ++j) {
-      for (int k=0; k<counts[i][j].size(); ++k) {            
-	z3 += pow(inv_sigma*(counts[i][j][k]-mu),2);
-      }
-    }
-  }
-
-  z3 = sqrt(z3)-sqrt(pow(counts.size()-1,3)-0.5);
-
-  return z3;
-}
-
 
 void stats(int cards, int trials) {
   Deck deck(cards);
@@ -243,11 +215,9 @@ TEST(Deck,Luck) {
   double z2=z2_luck(bins2);
 
 
-  double z3=z3_luck(bins3);  
-
   std::cout << "z_luck(os_rand)=" << z << std::endl;
   std::cout << "z2_luck(os_rand)=" << z2 << std::endl;
-  std::cout << "z3_luck(os_rand)=" << z3 << std::endl;    
+
   ASSERT_LT(fabs(z),8);
   ASSERT_LT(fabs(z2),8);  
 

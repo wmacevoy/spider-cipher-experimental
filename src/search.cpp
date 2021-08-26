@@ -51,7 +51,6 @@ namespace spider {
 	Deck newDeck(deck);
 	newDeck.unmix(card);
 	if (fboundary.find(newDeck) != fboundary.end()) {
-	  std::cout << "path reverse containing " << card << " (rdist=" << rdist << ") found." << std::endl;
 	  paths.push_back(std::vector<Card>());
 	  std::vector<Card> &path = paths[paths.size()-1];
 	  if (newDeck != from) {
@@ -92,7 +91,6 @@ namespace spider {
 	Deck newDeck(deck);
 	newDeck.mix(Card(card));
 	if (rboundary.find(newDeck) != rboundary.end()) {
-	  std::cout << "path forward containing " << card << " (fdist=" << fdist << ") found." << std::endl;
 	  paths.push_back(std::vector<Card>());
 	  std::vector<Card> &path=paths[paths.size()-1];
 	  if (deck != from) {
