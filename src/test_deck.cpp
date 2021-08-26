@@ -6,76 +6,6 @@ using namespace std;
 using namespace spider;
 
 
-TEST(Deck,Basics) {
-  Deck toy(10);
-  Deck odd(17);  
-  Deck real(40);
-  Deck all(52);
-
-  ASSERT_EQ(toy.modulus(),10);
-  ASSERT_EQ(odd.modulus(),40);
-  ASSERT_EQ(real.modulus(),40);
-  ASSERT_EQ(all.modulus(),40);
-
-  for (int i=0; i<52; ++i) {
-    ASSERT_EQ(toy.find(Card(i)), i < 10 ? i : -1);
-    ASSERT_EQ(odd.find(Card(i)), i < 17 ? i : -1);
-    ASSERT_EQ(real.find(Card(i)), i < 40 ? i : -1);
-    ASSERT_EQ(all.find(Card(i)), i < 52 ? i : -1);
-  }
-  
-  ASSERT_EQ(toy.forward(toy.cards,0,0),0);
-  ASSERT_EQ(odd.forward(odd.cards,0,1),1);
-  ASSERT_EQ(real.forward(real.cards,1,1),2);
-  ASSERT_EQ(all.forward(all.cards,0,50),10);
-
-  ASSERT_EQ(toy.back(toy.cards,0,0),0);
-  ASSERT_EQ(odd.back(odd.cards,0,1),16);
-  ASSERT_EQ(real.back(real.cards,1,1),0);
-  ASSERT_EQ(all.back(all.cards,0,50),30);
-
-  ASSERT_EQ(toy.addMod(Card(0),Card(1)),Card(1));
-  ASSERT_EQ(toy.after(toy.cards,Card(1)),Card(2));
-  ASSERT_EQ(toy.after(toy.cards,Card(9)),Card(0));  
-  ASSERT_EQ(toy.cipherPad(),Card(2));
-  ASSERT_EQ(odd.cipherPad(),Card(2));
-  ASSERT_EQ(real.after(real.cards,Card(0)),Card(1));
-  ASSERT_EQ(real.after(real.cards,Card(39)),Card(0));  
-  ASSERT_EQ(real.cipherPad(),Card(2));
-  ASSERT_EQ(all.cipherPad(),Card(2));
-  ASSERT_EQ(all.after(all.cards,Card(0)),Card(1));
-  ASSERT_EQ(all.after(all.cards,Card(39)),Card(0));
-
-  ASSERT_EQ(toy.cutPad(),Card(4));
-  ASSERT_EQ(odd.cutPad(),Card(4));
-  ASSERT_EQ(real.cutPad(),Card(4));
-  ASSERT_EQ(all.cutPad(),Card(4));  
-
-  for (int i=0; i<40; ++i) {
-    if (i < 10) {
-      Deck dup(toy);
-      dup.mix(Card(i));
-      ASSERT_FALSE(dup == toy);
-      dup.unmix(Card(i));
-      ASSERT_TRUE(dup == toy);
-    }
-    if (i < 17 && odd.find(odd.addMod(odd.cutPad(),Card(i))) >= 0) {
-      Deck dup(odd);
-      dup.mix(Card(i));
-      ASSERT_FALSE(dup == odd);
-      dup.unmix(Card(i));
-      ASSERT_TRUE(dup == odd);
-    }
-    if (i < 40) {
-      Deck dup(real);
-      dup.mix(Card(i));
-      ASSERT_FALSE(dup == real);
-      dup.unmix(Card(i));
-      ASSERT_TRUE(dup == real);
-    }
-  }
-}
-
 void io(std::string expect) {
   std::istringstream iss(expect);
   std::vector<Card> expected;
@@ -102,7 +32,8 @@ void ps(int n,int k, std::string text) {
 void shuffle(Deck &deck, int a=33, int b=17) {
   int n=deck.cards.size();
   for (int i=0; i<n; ++i) {
-    int j=i+((a*i+b) % (n-i));
+    int m = (i == 0) ? (n == 10 ? 10 : 40) : n-i;
+    int j=i+((a*i+b) % m);
     Card tmp = deck.cards[i];
     deck.cards[i]=deck.cards[j];
     deck.cards[j]=tmp;
@@ -280,7 +211,7 @@ TEST(Deck,Before) {
 
 
 TEST(Deck,Shuffle) {
-  for (auto n : {10, 40, 52, 54}) {
+  for (auto n : {10, 40, 41, 52, 54}) {
     Deck a(n),b(n);
     
 
@@ -296,47 +227,155 @@ TEST(Deck,Shuffle) {
 
 
 TEST(Deck,Unmix) {
-  int n=10;
-  Deck a(n);
-  Deck b(n);
+  for (auto n : {10, 40, 41, 52, 54}) {
+    Deck a(n);
+    Deck b(n);
 
-  ASSERT_EQ(a,b);
+    ASSERT_EQ(a,b);
 
-  Card card1(1);
-  b.mix(card1);
-  b.unmix(card1);  
-  ASSERT_EQ(a,b);
+    Card card1(1);
+    b.mix(card1);
+    b.unmix(card1);  
+    ASSERT_EQ(a,b);
 
-  a.mix(card1);
-  b.mix(card1);
+    a.mix(card1);
+    b.mix(card1);
 
-  Card card2(2);
-  b.mix(card2);
-  b.unmix(card2);
-  ASSERT_EQ(a,b);
+    Card card2(2);
+    b.mix(card2);
+    b.unmix(card2);
+    ASSERT_EQ(a,b);
+  }
+}
+
+int cmp(const Deck &a, const Deck &b) {
+  if (a.cards.size() != b.cards.size()) {
+    return a.cards.size() < b.cards.size() ? -1 : 1;
+  }
+  unsigned a0 = Deck::forward(a.cards,0,0);
+  unsigned b0 = Deck::forward(b.cards,0,0);
+  int n = a.cards.size();
+  for (int i=0; i<n; ++i) {
+    int ai=a.cards[(a0+i) % n].order;
+    int bi=b.cards[(b0+i) % n].order;
+    if (ai != bi) {
+      return (ai < bi) ? -1 : 1;
+    }
+  }
+  return 0;
 }
 
 TEST(Deck,Mix) {
-  int n=40;
-  for (int len=1; len<10; ++len) {
-    std::vector<Deck> decks;
-    decks.push_back(Deck(n));
-    std::vector<Card> path;
-    for (int i=0; i<len; ++i) {
-      path.push_back(Card((i*31+17)%n));
-      decks.push_back(decks[decks.size()-1]);
-      decks[decks.size()-1].mix(path[path.size()-1]);
-    }
+  for (auto n : {10, 40, 41, 52, 54}) {
+    for (int len=1; len<10; ++len) {
+      std::vector<Deck> decks;
+      decks.push_back(Deck(n));
+      std::vector<Card> path;
+      for (int i=0; i<len; ++i) {
+	path.push_back(Card((i*31+17)%(n==10 ? 10 : 40)));
+	decks.push_back(decks[decks.size()-1]);
+	decks[decks.size()-1].mix(path[path.size()-1]);
+      }
 
-    for (int i=len-1; i>=0; --i) {
-      Deck deck(decks[i+1]);
-      deck.unmix(path[i]);
-      ASSERT_EQ(decks[i],deck) << " len=" << len << " i=" << i << std::endl;
+      for (int i=len-1; i>=0; --i) {
+	Deck deck(decks[i+1]);
+	deck.unmix(path[i]);
+	if (cmp(decks[i],deck) != 0) {
+	  Deck a(decks[i]);
+	  Deck b(decks[i+1]);
+	  Deck amix(a);
+	  Deck bunmix(b);
+	  amix.mix(path[i]);
+	  bunmix.unmix(path[i]);
+	  std::cout << "a=" << decks[i] << std::endl;
+	  std::cout << "b=" << decks[i+1] << std::endl;
+	  std::cout << "a.mix(" << path[i] << ")=" << amix << std::endl;
+	  std::cout << "b.unmix(" << path[i] << ")=" << bunmix << std::endl;	  
+	  ASSERT_EQ(decks[i],deck);
+	}
+
+      }
     }
   }
 }
 
-TEST(Deck10,PseudoShuffle) {
+TEST(Deck,CipherPad) {
+  for (auto n : {10, 40, 41, 52, 54}) {
+    Deck a(n);
+    shuffle(a);
+    
+    int zth = 0;
+    while (a.cards[zth].order >= 40) {
+      zth = (zth+1) % n;
+    }
+    for (int z=0; z<Deck::CIPHER_ZTH; ++z) {
+      zth = (zth+1) % n;
+      while (a.cards[zth].order >= 40) {
+	zth = (zth+1) % n;
+      }
+    }
+    ASSERT_EQ(Deck::forward(a.cards,0,Deck::CIPHER_ZTH),zth);
+
+    int mark = (a.cards[zth].order + Deck::CIPHER_OFFSET) % (n == 10 ? 10 : 40);
+    int markLoc = -1;
+    for (int i=0; i < n; ++i) {
+      if (a.cards[i].order == mark) {
+	ASSERT_EQ(markLoc,-1);
+	markLoc = i;
+      }
+    }
+    ASSERT_EQ(Deck::find(a.cards,Card(mark)),markLoc);
+
+    int cipherPadLoc = (markLoc + 1) % n;
+    while (a.cards[cipherPadLoc].order >= 40) {
+      cipherPadLoc = (cipherPadLoc+1) % n;
+    }
+
+    ASSERT_EQ(Deck::forward(a.cards,markLoc,1),cipherPadLoc);
+    ASSERT_EQ(a.cipherPad(),a.cards[cipherPadLoc]) << a;
+  }
+}
+
+
+TEST(Deck,CutPad) {
+  for (auto n : {10, 40, 41, 52, 54}) {
+    Deck a(n);
+    shuffle(a);
+    
+    int zth = 0;
+    while (a.cards[zth].order >= 40) {
+      zth = (zth+1) % n;
+    }
+    for (int z=0; z<Deck::CUT_ZTH; ++z) {
+      zth = (zth+1) % n;
+      while (a.cards[zth].order >= 40) {
+	zth = (zth+1) % n;
+      }
+    }
+    ASSERT_EQ(Deck::forward(a.cards,0,Deck::CUT_ZTH),zth);
+
+    int mark = (a.cards[zth].order + Deck::CUT_OFFSET) % (n == 10 ? 10 : 40);
+    int markLoc = -1;
+    for (int i=0; i < n; ++i) {
+      if (a.cards[i].order == mark) {
+	ASSERT_EQ(markLoc,-1);
+	markLoc = i;
+      }
+    }
+    ASSERT_EQ(Deck::find(a.cards,Card(mark)),markLoc);
+
+    int cutPadLoc = (markLoc + 1) % n;
+    while (a.cards[cutPadLoc].order >= 40) {
+      cutPadLoc = (cutPadLoc+1) % n;
+    }
+
+    ASSERT_EQ(Deck::forward(a.cards,markLoc,1),cutPadLoc);
+    ASSERT_EQ(a.cutPad(),a.cards[cutPadLoc]) << a;
+  }
+}
+
+
+TEST(Deck,PseudoShuffle10) {
   ps(10,0,"[9C(9),7C(7),5C(5),3C(3),AC(1),10C(0),2C(2),4C(4),6C(6),8C(8)]");
   ps(10,1,"[10C(0),8C(8),6C(6),4C(4),2C(2),AC(1),3C(3),5C(5),7C(7),9C(9)]");
   ps(10,2,"[AC(1),9C(9),7C(7),5C(5),3C(3),2C(2),4C(4),6C(6),8C(8),10C(0)]");
@@ -349,7 +388,7 @@ TEST(Deck10,PseudoShuffle) {
   ps(10,9,"[8C(8),6C(6),4C(4),2C(2),10C(0),9C(9),AC(1),3C(3),5C(5),7C(7)]");
 }
 
-TEST(Deck40,PseudoShuffle) {
+TEST(Deck,PseudoShuffle40) {
   // int n = 40;
   // for (int i=0; i<40; ++i) {
   //   Deck deck(n);

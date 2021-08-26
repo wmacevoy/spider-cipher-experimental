@@ -27,8 +27,6 @@ namespace spider {
     //
     int modulus() const;
 
-    int skip(int index, int delta);
-
     // replace with ordered deck (see card for order, it is not normal)
     void reset();
     

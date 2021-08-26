@@ -78,7 +78,8 @@ namespace spider {
   }
 
   Card Deck::cipherPad() const {
-    Card zth=forward(cards,0,CIPHER_ZTH);
+    int zthLoc = forward(cards,0,CIPHER_ZTH);
+    Card zth=cards[zthLoc];
     Card mark=addMod(zth,Card(CIPHER_OFFSET));
     int markLoc = find(cards,mark);
     int cipherPadLoc = forward(cards,markLoc,1);
@@ -110,7 +111,8 @@ namespace spider {
     //return zth(7); // 8.5
     // return zth(2); // 8.5
 
-    Card zth=forward(cards,0,CUT_ZTH);
+    int zthLoc = forward(cards,0,CUT_ZTH);
+    Card zth=cards[zthLoc];
     Card mark=addMod(zth,Card(CUT_OFFSET));
     int markLoc = find(cards,mark);
     int cutPadLoc = forward(cards,markLoc,1);
@@ -172,13 +174,13 @@ namespace spider {
       if (i % 2 == 0) {
 	--back;
 	out[i]=in[back];
+
       } else {
 	++front;
 	out[i]=in[front];
       }
     }
   }
-
 
   void Deck::pseudoShuffle(const Card &cutCard) {
     std::vector<Card> temp(cards.size());
@@ -189,8 +191,9 @@ namespace spider {
     assert(temp[0] == cutCard);
 
     backFrontShuffle(temp,cards);
+    int topLoc = forward(cards,0,0);
   }
-
+  
   bool Deck::operator<(const Deck &deck) const {
     if (cards.size() != deck.cards.size()) {
       return cards.size() < deck.cards.size();
