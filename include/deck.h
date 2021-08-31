@@ -3,18 +3,33 @@
 #include <vector>
 #include <set>
 
+#include "retain.hpp"
+
+#include "rng.h"
 #include "card.h"
 
 namespace spider {
+  struct DeckConfig {
+    static const int DEFAULT_CIPHER_ZTH;
+    static const int DEFAULT_CIPHER_OFFSET;
+    static const int DEFAULT_CUT_ZTH;
+    static const int DEFAULT_CUT_OFFSET;
 
+    DeckConfig();
+    
+    int cipherZth;
+    int cipherOffset;
+    int cutZth;
+    int cutOffset;
+
+    static const DeckConfig DEFAULT;
+  };
 
   struct Deck {
     std::vector<Card> cards;
-    static const int CIPHER_ZTH = 0;
-    static const int CIPHER_OFFSET = 1;
-    static const int CUT_ZTH = 4;
-    static const int CUT_OFFSET = 39;
 
+    static int padLoc(const std::vector<Card> &cards, int zth, int offset, int modulus);
+    static const DeckConfig& config();
     //
     // Modulus is 10 or 40.
     //
@@ -30,6 +45,7 @@ namespace spider {
 
     // replace with ordered deck (see card for order, it is not normal)
     void reset();
+    void shuffle(RNG &rng);
     
     Deck(size_t size);
   

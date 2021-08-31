@@ -1,5 +1,6 @@
 #include <iostream>
 #include "gtest/gtest.h"
+#include "retain.hpp"
 #include "deck.h"
 
 using namespace std;
@@ -59,6 +60,51 @@ TEST(Deck,TestShuffle) {
   }
 }
 
+TEST(Deck,DefaultConfig) {
+  const DeckConfig &cfg=Deck::config();
+  ASSERT_EQ(cfg.cipherZth,DeckConfig::DEFAULT_CIPHER_ZTH);
+  ASSERT_EQ(cfg.cipherOffset,DeckConfig::DEFAULT_CIPHER_OFFSET);
+  ASSERT_EQ(cfg.cutZth,DeckConfig::DEFAULT_CUT_ZTH);
+  ASSERT_EQ(cfg.cutOffset,DeckConfig::DEFAULT_CUT_OFFSET);
+}
+
+void test_recall() {
+  const DeckConfig &cfg=Deck::config();
+  ASSERT_EQ(cfg.cipherZth,-1);
+  ASSERT_EQ(cfg.cipherOffset,-2);
+  ASSERT_EQ(cfg.cutZth,-3);
+  ASSERT_EQ(cfg.cutOffset,-4);
+}
+
+TEST(Deck,RetainConfig) {
+  DeckConfig cfg;
+  cfg.cipherZth = -1;
+  cfg.cipherOffset = -2;
+  cfg.cutZth = -3;
+  cfg.cutOffset = -4;
+  retain<const DeckConfig> as(&cfg);
+  test_recall();
+}
+
+std::vector<DeckConfig> configs() {
+  std::vector<DeckConfig> cfgs;
+  DeckConfig cfg;  
+  for (auto cipherZth : {0,1,2,3,4,5}) {
+    cfg.cipherZth = cipherZth;
+    for (auto cipherOffset : {-1,0,1,2,3,4,5,35,36,37,38,39}) {
+      cfg.cipherOffset=cipherOffset;
+      for (auto cutZth : {0,1,2,3,4,5}) {
+	cfg.cutZth = cutZth;
+	for (auto cutOffset : {-1,0,1,2,3,4,5,35,36,37,38,39}) {
+	  cfg.cutOffset=cutOffset;
+	  cfgs.push_back(cfg);
+	}
+      }
+    }
+  }
+  return cfgs;
+}
+
 TEST(Deck,Equivalent) {
   for (auto n : {10, 40, 41, 52, 54}) {
     Deck a(n),b(n),c(n);
@@ -76,9 +122,16 @@ TEST(Deck,Equivalent) {
     ASSERT_EQ(equivalent(c,b),0);
     ASSERT_EQ(c.cipherPad(),b.cipherPad());
     ASSERT_EQ(c.cutPad(),b.cutPad());
-    c.mix(Card(0));
-    b.mix(Card(0));
-    ASSERT_EQ(c,b);
+    for (auto cfg : configs()) {
+      retain<const DeckConfig> as(&cfg);
+      for (int i=0; i<a.modulus(); ++i) {
+	Deck bmix(b);
+	Deck cmix(c);
+	bmix.mix(Card(i));
+	cmix.mix(Card(i));
+	ASSERT_EQ(bmix,cmix);
+      }
+    }
   }
 }
 
@@ -231,22 +284,44 @@ TEST(Deck,Before) {
   }
 }
 
+TEST(Deck,Mix) {
+  for (auto cfg : configs()) {
+    retain<const DeckConfig> as(&cfg);
+    for (auto n : {10, 40, 41, 52, 54}) {
+      for (int len=1; len<10; ++len) {
+	std::vector<Deck> decks;
+	decks.push_back(Deck(n));
+	std::vector<Card> path;
+	for (int i=0; i<len; ++i) {
+	  path.push_back(Card((i*31+17)%(n==10 ? 10 : 40)));
+	  decks.push_back(decks[decks.size()-1]);
+	  decks[decks.size()-1].mix(path[path.size()-1]);
+	}
 
-TEST(Deck,Shuffle) {
-  for (auto n : {10, 40, 41, 52, 54}) {
-    Deck a(n),b(n);
-    
+	for (int i=len-1; i>=0; --i) {
+	  ASSERT_EQ(&Deck::config(),&cfg);
+	
+	  Deck deck(decks[i+1]);
+	  deck.unmix(path[i]);
+	  if (equivalent(decks[i],deck) != 0) {
+	    Deck a(decks[i]);
+	    Deck b(decks[i+1]);
+	    Deck amix(a);
+	    Deck bunmix(b);
+	    amix.mix(path[i]);
+	    bunmix.unmix(path[i]);
+	    std::cout << "a=" << decks[i] << std::endl;
+	    std::cout << "b=" << decks[i+1] << std::endl;
+	    std::cout << "a.mix(" << path[i] << ")=" << amix << std::endl;
+	    std::cout << "b.unmix(" << path[i] << ")=" << bunmix << std::endl;	  
+	    ASSERT_EQ(decks[i],deck);
+	  }
 
-    shuffle(a);
-    for (int cutLoc=0; cutLoc<n; ++cutLoc) {
-      Deck::cut(a.cards,cutLoc,b.cards);
-      for (int i=0; i<n; ++i) {
-	ASSERT_EQ(b.cards[i],a.cards[(i+cutLoc)%n]);
+	}
       }
     }
   }
 }
-
 
 TEST(Deck,Unmix) {
   for (auto n : {10, 40, 41, 52, 54}) {
@@ -271,113 +346,102 @@ TEST(Deck,Unmix) {
 }
 
 
-TEST(Deck,Mix) {
-  for (auto n : {10, 40, 41, 52, 54}) {
-    for (int len=1; len<10; ++len) {
-      std::vector<Deck> decks;
-      decks.push_back(Deck(n));
-      std::vector<Card> path;
-      for (int i=0; i<len; ++i) {
-	path.push_back(Card((i*31+17)%(n==10 ? 10 : 40)));
-	decks.push_back(decks[decks.size()-1]);
-	decks[decks.size()-1].mix(path[path.size()-1]);
-      }
-
-      for (int i=len-1; i>=0; --i) {
-	Deck deck(decks[i+1]);
-	deck.unmix(path[i]);
-	if (equivalent(decks[i],deck) != 0) {
-	  Deck a(decks[i]);
-	  Deck b(decks[i+1]);
-	  Deck amix(a);
-	  Deck bunmix(b);
-	  amix.mix(path[i]);
-	  bunmix.unmix(path[i]);
-	  std::cout << "a=" << decks[i] << std::endl;
-	  std::cout << "b=" << decks[i+1] << std::endl;
-	  std::cout << "a.mix(" << path[i] << ")=" << amix << std::endl;
-	  std::cout << "b.unmix(" << path[i] << ")=" << bunmix << std::endl;	  
-	  ASSERT_EQ(decks[i],deck);
-	}
-
-      }
-    }
-  }
-}
 
 TEST(Deck,CipherPad) {
-  for (auto n : {10, 40, 41, 52, 54}) {
-    Deck a(n);
-    shuffle(a);
+  for (auto cfg : configs()) {
+    retain<const DeckConfig> as(&cfg);
+    for (auto n : {10, 40, 41, 52, 54}) {
+      Deck a(n);
+      const DeckConfig &cfg=a.config();
+      shuffle(a);
     
-    int zth = 0;
-    while (a.cards[zth].order >= 40) {
-      zth = (zth+1) % n;
-    }
-    for (int z=0; z<Deck::CIPHER_ZTH; ++z) {
-      zth = (zth+1) % n;
+      int zth = 0;
       while (a.cards[zth].order >= 40) {
 	zth = (zth+1) % n;
       }
-    }
-    ASSERT_EQ(Deck::forward(a.cards,0,Deck::CIPHER_ZTH),zth);
-
-    int mark = (a.cards[zth].order + Deck::CIPHER_OFFSET) % (n == 10 ? 10 : 40);
-    int markLoc = -1;
-    for (int i=0; i < n; ++i) {
-      if (a.cards[i].order == mark) {
-	ASSERT_EQ(markLoc,-1);
-	markLoc = i;
+      for (int z=0; z<cfg.cipherZth; ++z) {
+	zth = (zth+1) % n;
+	while (a.cards[zth].order >= 40) {
+	  zth = (zth+1) % n;
+	}
       }
-    }
-    ASSERT_EQ(Deck::find(a.cards,Card(mark)),markLoc);
+      ASSERT_EQ(Deck::forward(a.cards,0,cfg.cipherZth),zth);
 
-    int cipherPadLoc = (markLoc + 1) % n;
-    while (a.cards[cipherPadLoc].order >= 40) {
-      cipherPadLoc = (cipherPadLoc+1) % n;
-    }
+      int cipherPadLoc;    
 
-    ASSERT_EQ(Deck::forward(a.cards,markLoc,1),cipherPadLoc);
-    ASSERT_EQ(a.cipherPad(),a.cards[cipherPadLoc]) << a;
+      if (cfg.cipherOffset >= 0) {
+	int mark = (a.cards[zth].order + cfg.cipherOffset) % (n == 10 ? 10 : 40);
+	int markLoc = -1;
+	for (int i=0; i < n; ++i) {
+	  if (a.cards[i].order == mark) {
+	    ASSERT_EQ(markLoc,-1);
+	    markLoc = i;
+	  }
+	}
+	ASSERT_EQ(Deck::find(a.cards,Card(mark)),markLoc);
+
+	cipherPadLoc = (markLoc + 1) % n;
+	while (a.cards[cipherPadLoc].order >= 40) {
+	  cipherPadLoc = (cipherPadLoc+1) % n;
+	}
+	ASSERT_EQ(Deck::forward(a.cards,markLoc,1),cipherPadLoc);
+      } else {
+	cipherPadLoc = zth;
+      }
+
+      ASSERT_EQ(a.cipherPad(),a.cards[cipherPadLoc]) << a;
+    }
   }
 }
 
 
 TEST(Deck,CutPad) {
-  for (auto n : {10, 40, 41, 52, 54}) {
+  for (auto cfg : configs()) {
+    retain<const DeckConfig> as(&cfg);
+    for (auto n : {10, 40, 41, 52, 54}) {
     Deck a(n);
+    const DeckConfig &cfg=a.config();
     shuffle(a);
     
     int zth = 0;
     while (a.cards[zth].order >= 40) {
       zth = (zth+1) % n;
     }
-    for (int z=0; z<Deck::CUT_ZTH; ++z) {
+    for (int z=0; z<cfg.cutZth; ++z) {
       zth = (zth+1) % n;
       while (a.cards[zth].order >= 40) {
 	zth = (zth+1) % n;
       }
     }
-    ASSERT_EQ(Deck::forward(a.cards,0,Deck::CUT_ZTH),zth);
+    ASSERT_EQ(Deck::forward(a.cards,0,cfg.cutZth),zth);
 
-    int mark = (a.cards[zth].order + Deck::CUT_OFFSET) % (n == 10 ? 10 : 40);
-    int markLoc = -1;
-    for (int i=0; i < n; ++i) {
-      if (a.cards[i].order == mark) {
-	ASSERT_EQ(markLoc,-1);
-	markLoc = i;
+    int cutPadLoc;
+
+    if (cfg.cutOffset >= 0) {
+
+      int mark = (a.cards[zth].order + cfg.cutOffset) % (n == 10 ? 10 : 40);
+      int markLoc = -1;
+      for (int i=0; i < n; ++i) {
+	if (a.cards[i].order == mark) {
+	  ASSERT_EQ(markLoc,-1);
+	  markLoc = i;
+	}
       }
+      ASSERT_EQ(Deck::find(a.cards,Card(mark)),markLoc);
+      
+      cutPadLoc = (markLoc + 1) % n;
+      while (a.cards[cutPadLoc].order >= 40) {
+	cutPadLoc = (cutPadLoc+1) % n;
+      }
+      ASSERT_EQ(Deck::forward(a.cards,markLoc,1),cutPadLoc);
+      
+    } else {
+      cutPadLoc = zth;
     }
-    ASSERT_EQ(Deck::find(a.cards,Card(mark)),markLoc);
-
-    int cutPadLoc = (markLoc + 1) % n;
-    while (a.cards[cutPadLoc].order >= 40) {
-      cutPadLoc = (cutPadLoc+1) % n;
-    }
-
-    ASSERT_EQ(Deck::forward(a.cards,markLoc,1),cutPadLoc);
+      
     ASSERT_EQ(a.cutPad(),a.cards[cutPadLoc]) << a;
   }
+}
 }
 
 

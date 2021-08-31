@@ -5,6 +5,34 @@
 #include "deck.h"
 
 namespace spider {
+
+  const int DeckConfig::DEFAULT_CIPHER_ZTH = 0;
+  const int DeckConfig::DEFAULT_CIPHER_OFFSET = -1;
+  const int DeckConfig::DEFAULT_CUT_ZTH = 4;
+  const int DeckConfig::DEFAULT_CUT_OFFSET = 37;
+  
+  DeckConfig::DeckConfig()
+    : cipherZth(DEFAULT_CIPHER_ZTH),
+      cipherOffset(DEFAULT_CIPHER_OFFSET),
+      cutZth(DEFAULT_CUT_ZTH),
+      cutOffset(DEFAULT_CUT_OFFSET)
+  {
+  }
+
+  const DeckConfig DeckConfig::DEFAULT;
+
+  int Deck::padLoc(const std::vector<Card> &cards, int zth, int offset, int modulus) {
+    int zthLoc = forward(cards,0,zth);
+    if (offset >= 0) {
+      Card markCard=spider::addMod(cards[zthLoc],Card(offset),modulus);
+      int markLoc = find(cards,markCard);
+      int padLoc = forward(cards,markLoc,1);
+      return padLoc;
+    } else {
+      return zthLoc;
+    }
+  }
+
   unsigned Deck::forward(const std::vector<Card> &cards, unsigned loc, unsigned delta) {
     unsigned n = cards.size();
     for (;;) {
@@ -39,6 +67,17 @@ namespace spider {
       cards[i]=Card(i);
     }
   }
+
+  void Deck::shuffle(RNG &rng) {
+    int n=cards.size();
+    for (int i=0; i<n; ++i) {
+      int j=rng.next(i,n-1);
+      Card tmp=cards[i];
+      cards[i]=cards[j];
+      cards[j]=tmp;
+    }
+  }
+  
 
   Deck::Deck(size_t size) : cards(size) {
     for (size_t i=0; i<size; ++i) {
@@ -76,12 +115,14 @@ namespace spider {
     return spider::subMod(a,b,modulus());
   }
 
+  const DeckConfig& Deck::config() {
+    auto recalled = retain<const DeckConfig>::begin();
+    return (recalled != retain<const DeckConfig>::end()) ? *recalled : DeckConfig::DEFAULT;
+  }
+
   Card Deck::cipherPad() const {
-    int zthLoc = forward(cards,0,CIPHER_ZTH);
-    Card zth=cards[zthLoc];
-    Card mark=addMod(zth,Card(CIPHER_OFFSET));
-    int markLoc = find(cards,mark);
-    int cipherPadLoc = forward(cards,markLoc,1);
+    const DeckConfig &cfg=config();
+    int cipherPadLoc = padLoc(cards,cfg.cipherZth,cfg.cipherOffset,modulus());
     return cards[cipherPadLoc];
   }
   
@@ -110,11 +151,17 @@ namespace spider {
     //return zth(7); // 8.5
     // return zth(2); // 8.5
 
-    int zthLoc = forward(cards,0,CUT_ZTH);
-    Card zth=cards[zthLoc];
-    Card mark=addMod(zth,Card(CUT_OFFSET));
-    int markLoc = find(cards,mark);
-    int cutPadLoc = forward(cards,markLoc,1);
+    //return cards[forward(cards,0,1)]; // trials=1e6 z2(xy)=469
+    // -- return cards[forward(cards,0,2)]; // trials=1e6 z2(xy)=5.37
+    //return cards[forward(cards,0,3)]; // trials=1e6 z2(xy)=7.19939
+    //return cards[forward(cards,0,4)]; // trials=1e6 z2(xy)=6.81843
+    //   return cards[forward(cards,0,5)]; // trials=1e6 z2(xy)=8.02416
+    //    return cards[forward(cards,find(cards,addMod(cards[forward(cards,0,2)],Card(modulus()-1))),1)]; // trials=1e6 z2(xy)=4.79
+    //return cards[forward(cards,find(cards,addMod(cards[forward(cards,0,2)],Card(modulus()-2))),1)]; // trials=1e6 z2(xy)=8.14
+    //return cards[forward(cards,find(cards,addMod(cards[forward(cards,0,2)],Card(modulus()-10))),1)]; // trials=1e6 z2(xy)=8.8
+    //return cards[forward(cards,find(cards,addMod(cards[forward(cards,0,2)],Card(1))),1)]; // trials=1e6 z2(xy)=469    
+    const DeckConfig &cfg=config();
+    int cutPadLoc = padLoc(cards,cfg.cutZth,cfg.cutOffset,modulus());
     return cards[cutPadLoc];
   }
 
@@ -127,15 +174,21 @@ namespace spider {
   void Deck::unmix(const Card &plainCard) {
     std::vector<Card> temp(cards.size());
     backFrontUnshuffle(cards,temp);
+    const DeckConfig &cfg=config();
 
     Card cutCard = temp[0];
     Card cutPad = subMod(cutCard,plainCard);
     int cutPadLoc = find(temp,cutPad);
-    int markLoc = back(temp,cutPadLoc,1);
-    Card mark = temp[markLoc];
-    Card zth=subMod(mark,Card(CUT_OFFSET));
-    int zthLoc = find(temp,zth);
-    int topLoc = back(temp,zthLoc,CUT_ZTH);
+    int zthLoc;
+    if (cfg.cutOffset >= 0) {
+      int markLoc = back(temp,cutPadLoc,1);
+      Card mark = temp[markLoc];
+      Card zth=subMod(mark,Card(cfg.cutOffset));
+      zthLoc = find(temp,zth);
+    } else {
+      zthLoc = cutPadLoc;
+    }
+    int topLoc = back(temp,zthLoc,cfg.cutZth);
 
     cut(temp,topLoc,cards);
   }
