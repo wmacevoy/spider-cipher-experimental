@@ -1,0 +1,25 @@
+[==========] Running 2 tests from 2 test cases.
+[----------] Global test environment set-up.
+[----------] 1 test from Solitare
+[ RUN      ] Solitare.KeyStream
+[       OK ] Solitare.KeyStream (0 ms)
+[----------] 1 test from Solitare (0 ms total)
+
+[----------] 1 test from Solitaire
+[ RUN      ] Solitaire.Stats
+nz=100
+nt=1000000
+padStats1: total=100 mean=0.0542575 sd=0.76129 min=-2.03328 max=1.83332
+padStats2: total=100 mean=8.92322 sd=0.836116 min=6.83848 max=10.8878
+padStats3: total=100 mean=1.85635 sd=0.685155 min=0.166539 max=3.52148
+padStats4: total=100 mean=0.262133 sd=0.677957 min=-1.12505 max=2.14077
+rngStats1: total=100 mean=0.0589972 sd=0.770207 min=-1.62493 max=1.85979
+rngStats2: total=100 mean=0.0539507 sd=0.608559 min=-1.14741 max=1.60676
+rngStats3: total=100 mean=0.0852153 sd=0.640187 min=-1.97036 max=1.86062
+rngStats4: total=100 mean=-0.0426861 sd=0.809629 min=-1.89341 max=2.43256
+[       OK ] Solitaire.Stats (52513 ms)
+[----------] 1 test from Solitaire (52513 ms total)
+
+[----------] Global test environment tear-down
+[==========] 2 tests from 2 test cases ran. (52513 ms total)
+[  PASSED  ] 2 tests.
