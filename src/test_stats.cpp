@@ -66,17 +66,14 @@ double z2_luck(const std::vector< std::vector<int> > &counts) {
     }
   }
 
-  z2 = sqrt(z2)-sqrt(pow(counts.size()-1,2)-0.5);
-
+  z2 = sqrt(z2)-sqrt(pow(counts.size(),2)-1.5);
   return z2;
 }
 
 std::vector<DeckConfig> top40Configs() {
   std::vector<DeckConfig> cfgs;
-  { Cfg cfg; cfg.cipherZth = 0; cfg.cipherOffset = -1; cfg.cutZth = 4; cfg.cutOffset = 37; cfgs.push_back(cfg); }
-  { Cfg cfg; cfg.cipherZth = 1; cfg.cipherOffset = -1; cfg.cutZth = 3; cfg.cutOffset =  4; cfgs.push_back(cfg); }  
-  { Cfg cfg; cfg.cipherZth = 2; cfg.cipherOffset = 38; cfg.cutZth = 5; cfg.cutOffset = 39; cfgs.push_back(cfg); }
-  { Cfg cfg; cfg.cipherZth = 4; cfg.cipherOffset = 37; cfg.cutZth = 0; cfg.cutOffset =  4; cfgs.push_back(cfg); }  
+  { DeckConfig cfg; cfg.cipherZth = 5; cfg.cipherOffset = 35; cfg.cutZth = 1; cfg.cutOffset = 38; cfgs.push_back(cfg); }
+  return cfgs;
 }
 
 std::vector<DeckConfig> configs() {
@@ -84,11 +81,12 @@ std::vector<DeckConfig> configs() {
   DeckConfig cfg;  
   for (auto cipherZth : {0,1,2,3,4,5}) {
     cfg.cipherZth = cipherZth;
-    for (auto cipherOffset : {-1,0,1,2,3,4,5,35,36,37,38,39}) {
+    for (auto cipherOffset : {1,2,3,4,5,35,36,37,38,39}) {
       cfg.cipherOffset=cipherOffset;
       for (auto cutZth : {0,1,2,3,4,5}) {
+	if (cutZth == cipherZth) continue;
 	cfg.cutZth = cutZth;
-	for (auto cutOffset : {-1,0,1,2,3,4,5,35,36,37,38,39}) {
+	for (auto cutOffset : {-1,1,2,3,4,5,35,36,37,38,39}) {
 	  cfg.cutOffset=cutOffset;
 	  cfgs.push_back(cfg);
 	}
@@ -138,10 +136,10 @@ struct Stats {
 };
 
 struct DeckStats {
-  std::ostream &out;
-  RNG &rng;
-
   int n;
+  RNG &rng;
+  std::ostream &out;
+
   int zTrials;
   int tTrials;
 
@@ -163,7 +161,6 @@ struct DeckStats {
   std::vector< int > cuts;
   std::vector< std::vector < int > > cuts2;
   std::vector< std::vector < int > > xy;
-  
 
   void reset() {
     id = 0;
@@ -187,7 +184,7 @@ struct DeckStats {
     cut1=0;
   }
   
-  DeckStats(RNG &rng = RNG::DEFAULT, std::ostream &_out = std::cout) : out(_out)  { reset(); }
+  DeckStats(int _n = 40, RNG &_rng = RNG::DEFAULT, std::ostream &_out = std::cout) : n(_n), out(_out), rng(_rng), deck(n)  { reset(); }
 
   void outHeader() {
     out << "n,cipherZth,cipherOffset,cutZth,cutOffset,cipherMean,cipherSd,cipher2Mean,cipher2Sd,cutMean,cutSd,cut2Mean,cut2Sd,xyMean,xySd" <<  std::endl;
@@ -198,13 +195,13 @@ struct DeckStats {
     out << n << "," << cfg.cipherZth << "," << cfg.cipherOffset << "," << cfg.cutZth << "," << cfg.cutOffset << "," << zCipherStats.mean() <<  "," << zCipherStats.sd() << "," << zCipher2Stats.mean() << "," << zCipher2Stats.sd() << "," << zCutStats.mean() << "," << zCutStats.sd() << "," << zCut2Stats.mean() << "," << zCut2Stats.sd() << "," << zXyStats.mean() << "," << zXyStats.sd() << std::endl;
   }
 
-  void tTrial() {
+  void tTrial(int t) {
     cipher1=deck.cipherPad().order;
     cut1=deck.cutPad().order;
     ++ciphers.at(cipher1);
     ++cuts.at(cut1);
     ++xy.at(cut1).at(cipher1);
-    if (tTrial > 0) {
+    if (t > 0) {
       ++ciphers2.at(cipher0).at(cipher1);
       ++cuts2.at(cut0).at(cut1);
     }
@@ -214,7 +211,7 @@ struct DeckStats {
     deck.mix(deck.modulus()-1);
   }
 
-  void zTrial() {
+  void zTrial(int z) {
     ciphers = std::vector< int > ( n, 0 );
     ciphers2 = std::vector< std::vector < int > > ( n, std::vector<int>(n,0) );
     cuts = std::vector< int > ( n, 0 );
@@ -222,15 +219,24 @@ struct DeckStats {
     xy = std::vector< std::vector < int > > ( n, std::vector<int>(n,0) );
 
     deck = Deck(n);
-    deck.shuffle();
+    deck.shuffle(rng);
     
     cipher0=0;
     cipher1=0;
     cut0=0;
     cut1=0;
     for (int t=0; t<tTrials; ++t) {
-      tTrial();
+      tTrial(t);
     }
+
+    if (z == 0) {
+      zCipherStats.reset();
+      zCipher2Stats.reset();
+      zCutStats.reset();
+      zCut2Stats.reset();
+      zXyStats.reset();
+    }
+    
     zCipherStats.add(z_luck(ciphers));
     zCipher2Stats.add(z2_luck(ciphers2));
     zCutStats.add(z_luck(cuts));
@@ -238,18 +244,12 @@ struct DeckStats {
     zXyStats.add(z2_luck(xy));
   }
 
-  DeskConfig cfg;
+  DeckConfig cfg;
   void row() {
     retain<const DeckConfig> as(&cfg);
     
-    zCipherStats.reset();
-    zCipher2Stats.reset();
-    zCutStats.reset();
-    zCut2Stats.reset();
-    zXyStats.reset();
-    
     for (int z=0; z<zTrials; ++z) {
-      zTrial();
+      zTrial(z);
     }
 
     if (id == 0) {
@@ -258,11 +258,11 @@ struct DeckStats {
     outRow();
     ++id;
   }
-}
+};
 
 TEST(Stats,Opt) {
   std::vector < DeckConfig > cfgs = configs();
-  std::vector < int > ns = {10, 40, 41, 52, 54};
+  std::vector < int > ns = {40};
   DeckStats stats;
   stats.zTrials = 24;
   stats.tTrials = 1000*1000;
@@ -278,9 +278,9 @@ TEST(Stats,Opt) {
 TEST(Stats,OptTop) {
   std::vector < DeckConfig > cfgs = top40Configs();
   std::vector < int > ns = {40};
-  DeckStats stats;  
-  int zTrials = 100;
-  int tTrials = 1000*1000;
+  DeckStats stats;
+  stats.zTrials = 24;
+  stats.tTrials = 1000*1000;
   for (auto n : ns) {
     stats.n = n;
     for (auto cfg : cfgs) {

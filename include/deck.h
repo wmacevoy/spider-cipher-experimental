@@ -21,6 +21,7 @@ namespace spider {
     int cipherOffset;
     int cutZth;
     int cutOffset;
+    
 
     static const DeckConfig DEFAULT;
   };
@@ -107,4 +108,5 @@ namespace spider {
   std::ostream& operator<<(std::ostream &out, const Deck &deck);
   std::ostream& operator<<(std::ostream &out, const std::set<Deck> &decks);
   int equivalent(const Deck &a, const Deck &b);
+
 }
