@@ -142,6 +142,7 @@ struct DeckStats {
 
   int zTrials;
   int tTrials;
+  int messageLen;
 
   int cipher0;
   int cipher1;
@@ -184,7 +185,7 @@ struct DeckStats {
     cut1=0;
   }
   
-  DeckStats(int _n = 40, RNG &_rng = RNG::DEFAULT, std::ostream &_out = std::cout) : n(_n), out(_out), rng(_rng), deck(n)  { reset(); }
+  DeckStats(int _n = 40, RNG &_rng = RNG::DEFAULT, std::ostream &_out = std::cout) : n(_n), out(_out), rng(_rng), deck(n)  { reset(); zTrials = 100*100; tTrials=100*100; messageLen = -1; }
 
   void outHeader() {
     out << "n,cipherZth,cipherOffset,cutZth,cutOffset,cipherMean,cipherSd,cipher2Mean,cipher2Sd,cutMean,cutSd,cut2Mean,cut2Sd,xyMean,xySd" <<  std::endl;
@@ -207,8 +208,14 @@ struct DeckStats {
     }
     cipher0=cipher1;
     cut0=cut1;
-    
-    deck.mix(deck.modulus()-1);
+
+    if (messageLen >= 0) {
+      if ((t % messageLen) < 10) {
+	deck.mix(rng.next(0,deck.modulus()-1));
+      } else {
+	deck.mix(deck.modulus()-1);
+      }
+    }
   }
 
   void zTrial(int z) {
@@ -293,9 +300,11 @@ TEST(Stats,OptTop) {
 TEST(Stats,OptTopMessage) {
   std::vector < DeckConfig > cfgs = top40Configs();
   std::vector < int > ns = {40};
-  DeckStats stats;  
-  int zTrials = 100;
-  int tTrials = 1000*1000;
+  DeckStats stats;
+  stats.zTrials = 100;
+  stats.tTrials = 1000*1000;
+  stats.messageLen = 1000;
+
   for (auto n : ns) {
     stats.n = n;
     for (auto cfg : cfgs) {
@@ -304,7 +313,6 @@ TEST(Stats,OptTopMessage) {
     }
   }
 }
-
 
 TEST(Deck,Luck) {
   OS_RNG rng;
