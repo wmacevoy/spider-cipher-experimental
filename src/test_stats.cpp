@@ -280,8 +280,8 @@ struct DeckStats {
 TEST(Stats,Default) {
   DeckStats stats;
   stats.n = 40;
-  stats.zTrials = 4*4;
-  stats.tTrials = 1000*1000;
+  stats.zTrials = 10*10;
+  stats.tTrials = 10000*10000;
   stats.cfg = DeckConfig::DEFAULT;
   stats.progress = true;
   stats.row();
@@ -337,27 +337,31 @@ TEST(Stats,OptTopMessage) {
 TEST(Deck,Luck) {
   OS_RNG rng;
 
-  int n = 100*1000*1000;
+  int trials = 10000*10000;
 
-  int k = 40;
+  int n = 40;
 
-  std::vector < int > bins(k,0);
-  std::vector < std::vector < int > > bins2(k, std::vector <int> (k, 0));
+  std::vector < int > bins(n,0);
+  std::vector < std::vector < int > > bins2(n, std::vector <int> (n, 0));
+  std::vector < std::vector < int > > bins3(n, std::vector <int> (n, 0));  
 
-  for (int i=0; i<n; ++i) {
-    int a = rng.next(0,k-1);
-    int b = rng.next(0,k-1);
-    int c = rng.next(0,k-1);    
+  int a0=0,a1=rng.next(0,n-1);
+  for (int trial=0; trial<trials; ++trial) {
+    int a0 = rng.next(0,n-1);
+    int b = rng.next(0,n-1);
     ++bins[a];
     ++bins2[a][b];
+    ++bins3[a0][a1];
+    a1=a0;
   }
 
   double z=z_luck(bins);
-
   double z2=z2_luck(bins2);
+  double z3=z2_luck(bins3);  
 
-  std::cout << "z_luck(os_rand)=" << z << std::endl;
-  std::cout << "z2_luck(os_rand)=" << z2 << std::endl;
+  std::cout << "z_luck(rng)=" << z << std::endl;
+  std::cout << "z2_luck(rng,rng)=" << z2 << std::endl;
+  std::cout << "z2_luck(rng2)=" << z3 << std::endl;  
 
   ASSERT_LT(fabs(z),8);
   ASSERT_LT(fabs(z2),8);  
