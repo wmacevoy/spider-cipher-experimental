@@ -145,6 +145,8 @@ struct DeckStats {
   int tTrials;
   int messageLen;
 
+  double trials;
+  double trial;
   int cipher0;
   int cipher1;
   int cut0;
@@ -152,11 +154,15 @@ struct DeckStats {
 
   int id;
   Deck deck;
+  DeckConfig cfg;
+  
   Stats zCipherStats;
   Stats zCipher2Stats;      
   Stats zCutStats;
   Stats zCut2Stats;
   Stats zXyStats;
+
+  bool progress;
 
   std::vector< int > ciphers;
   std::vector< std::vector < int > > ciphers2;
@@ -164,77 +170,69 @@ struct DeckStats {
   std::vector< std::vector < int > > cuts2;
   std::vector< std::vector < int > > xy;
 
-  void reset() {
-    id = 0;
-    deck = Deck(n);
-    deck.shuffle(rng);
-    zCipherStats.reset();
-    zCipher2Stats.reset();
-    zCutStats.reset();
-    zCut2Stats.reset();
-    zXyStats.reset();
-
-    ciphers = std::vector< int > ( n, 0 );
-    ciphers2 = std::vector< std::vector < int > > ( n, std::vector<int>(n,0) );
-    cuts = std::vector< int > ( n, 0 );
-    cuts2 = std::vector< std::vector < int > > ( n, std::vector<int>(n,0) );
-    xy = std::vector< std::vector < int > > ( n, std::vector<int>(n,0) );
-
-    cipher0=0;
-    cipher1=0;
-    cut0=0;
-    cut1=0;
-  }
   
-  DeckStats(int _n = 40, RNG &_rng = RNG::DEFAULT, std::ostream &_out = std::cout) : n(_n), out(_out), rng(_rng), deck(n)  { reset(); zTrials = 100*100; tTrials=100*100; messageLen = -1; }
+  DeckStats(int _n = 40, RNG &_rng = RNG::DEFAULT, std::ostream &_out = std::cout) : n(_n), rng(_rng), out(_out), zTrials(10*10), tTrials(100*100), messageLen(-1), trials(double(zTrials)*double(tTrials)),trial(0.0),cipher0(0), cipher1(0), cut0(0), cut1(0), id(0), deck(n), cfg(Deck::config()), ciphers(n,0), ciphers2(n,std::vector(n,0)), cuts(n,0), cuts2(n,std::vector<int>(n,0)), xy(n,std::vector<int>(n,0)), progress(false) {}
 
   void outHeader() {
     out << "n,cipherZth,cipherOffset,cutZth,cutOffset,cipherMean,cipherSd,cipher2Mean,cipher2Sd,cutMean,cutSd,cut2Mean,cut2Sd,xyMean,xySd" <<  std::endl;
   }
 
   void outRow() {
-    const DeckConfig &cfg = deck.config();
+    //    const DeckConfig &cfg = deck.config();
     out << n << "," << cfg.cipherZth << "," << cfg.cipherOffset << "," << cfg.cutZth << "," << cfg.cutOffset << "," << zCipherStats.mean() <<  "," << zCipherStats.sd() << "," << zCipher2Stats.mean() << "," << zCipher2Stats.sd() << "," << zCutStats.mean() << "," << zCutStats.sd() << "," << zCut2Stats.mean() << "," << zCut2Stats.sd() << "," << zXyStats.mean() << "," << zXyStats.sd() << std::endl;
   }
 
   void tTrial(int t) {
-    cipher1=deck.cipherPad().order;
-    cut1=deck.cutPad().order;
-    ++ciphers.at(cipher1);
-    ++cuts.at(cut1);
-    ++xy.at(cut1).at(cipher1);
-    if (t > 0) {
-      ++ciphers2.at(cipher0).at(cipher1);
-      ++cuts2.at(cut0).at(cut1);
-    }
-    cipher0=cipher1;
-    cut0=cut1;
+   
+    if (t == 0) {
+      ciphers = std::vector< int > ( n, 0 );
+      ciphers2 = std::vector< std::vector < int > > ( n, std::vector<int>(n,0) );
+      cuts = std::vector< int > ( n, 0 );
+      cuts2 = std::vector< std::vector < int > > ( n, std::vector<int>(n,0) );
+      xy = std::vector< std::vector < int > > ( n, std::vector<int>(n,0) );
 
-    if (messageLen >= 0) {
-      if ((t % messageLen) < 10) {
+      deck = Deck(n);
+      deck.shuffle(rng);
+
+      cipher0=0;
+      cipher1=0;
+      cut0=0;
+      cut1=0;
+    }
+
+    if (messageLen > 0 && t % messageLen == 0) {
+      for (int i=0; i<10; ++i) {
 	deck.mix(rng.next(0,deck.modulus()-1));
-      } else {
-	deck.mix(deck.modulus()-1);
       }
     }
+
+    static const std::string testMessage = "SPIDER SOLITAIRE ";
+    int offset = (messageLen > 0) ? (t % messageLen) : t;
+    deck.mix(rng.next(0,deck.modulus()-1));    
+    deck.mix(Card(testMessage[offset % testMessage.length()]-'A'));
+
+    cipher0=deck.cipherPad().order;
+    cut0=deck.cutPad().order;
+    ++ciphers.at(cipher0);
+    ++cuts.at(cut0);
+    ++xy.at(cut0).at(cipher0);
+    if (t > 0 || (messageLen > 0 && t % messageLen > 0)) {
+      ++ciphers2.at(cipher1).at(cipher0);
+      ++cuts2.at(cut1).at(cut0);
+    }
+    cipher1=cipher0;
+    cut1=cut0;
+    ++trial;
   }
 
   void zTrial(int z) {
-    ciphers = std::vector< int > ( n, 0 );
-    ciphers2 = std::vector< std::vector < int > > ( n, std::vector<int>(n,0) );
-    cuts = std::vector< int > ( n, 0 );
-    cuts2 = std::vector< std::vector < int > > ( n, std::vector<int>(n,0) );
-    xy = std::vector< std::vector < int > > ( n, std::vector<int>(n,0) );
-
-    deck = Deck(n);
-    deck.shuffle(rng);
-    
-    cipher0=0;
-    cipher1=0;
-    cut0=0;
-    cut1=0;
     for (int t=0; t<tTrials; ++t) {
       tTrial(t);
+      if (progress) {
+	if (floor(100*trial/trials) != floor(100*(trial-1)/trials)) {
+	  out << trial << "/" << trials << "(" << floor(100*trial/trials) << "%)" << std::endl;
+	}
+      }
     }
 
     if (z == 0) {
@@ -250,11 +248,22 @@ struct DeckStats {
     zCutStats.add(z_luck(cuts));
     zCut2Stats.add(z2_luck(cuts2));
     zXyStats.add(z2_luck(xy));
+
+
+    if (progress) {
+      if (floor(100*double(z)/double(zTrials)) != floor(100*double(z-1)/double(zTrials))) {
+	out << "at z=" << z << " out of " << zTrials << ":" << std::endl;
+	outHeader();
+	outRow();
+      }
+    }
   }
 
-  DeckConfig cfg;
   void row() {
     retain<const DeckConfig> as(&cfg);
+
+    trials = double(zTrials)*double(tTrials);
+    trial = 0.0;
     
     for (int z=0; z<zTrials; ++z) {
       zTrial(z);
@@ -270,10 +279,11 @@ struct DeckStats {
 
 TEST(Stats,Default) {
   DeckStats stats;
-  stats.zTrials = 24;
-  stats.tTrials = 1000*1000;
   stats.n = 40;
+  stats.zTrials = 4*4;
+  stats.tTrials = 1000*1000;
   stats.cfg = DeckConfig::DEFAULT;
+  stats.progress = true;
   stats.row();
 }
 
