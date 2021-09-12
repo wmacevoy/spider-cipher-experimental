@@ -1,3 +1,4 @@
+
 #include <math.h>
 #include "gtest/gtest.h"
 
@@ -266,6 +267,15 @@ struct DeckStats {
     ++id;
   }
 };
+
+TEST(Stats,Default) {
+  DeckStats stats;
+  stats.zTrials = 24;
+  stats.tTrials = 1000*1000;
+  stats.n = 40;
+  stats.cfg = DeckConfig::DEFAULT;
+  stats.row();
+}
 
 TEST(Stats,Opt) {
   std::vector < DeckConfig > cfgs = configs();
