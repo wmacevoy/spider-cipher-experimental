@@ -1,6 +1,7 @@
 #include "solitaire.h"
 
 #include <algorithm>
+#include <cassert>
 
 namespace spider {
 

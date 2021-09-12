@@ -1,7 +1,8 @@
 #include <vector>
 #include <string>
 #include <iostream>
-
+#include <cassert>
+#include <memory>
 #include "messenger.h"
 
 using namespace std;
