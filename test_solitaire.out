@@ -9,17 +9,17 @@
 [ RUN      ] Solitaire.Stats
 nz=100
 nt=1000000
-padStats1: total=100 mean=0.0542575 sd=0.76129 min=-2.03328 max=1.83332
-padStats2: total=100 mean=8.92322 sd=0.836116 min=6.83848 max=10.8878
-padStats3: total=100 mean=1.85635 sd=0.685155 min=0.166539 max=3.52148
-padStats4: total=100 mean=0.262133 sd=0.677957 min=-1.12505 max=2.14077
-rngStats1: total=100 mean=0.0589972 sd=0.770207 min=-1.62493 max=1.85979
-rngStats2: total=100 mean=0.0539507 sd=0.608559 min=-1.14741 max=1.60676
-rngStats3: total=100 mean=0.0852153 sd=0.640187 min=-1.97036 max=1.86062
-rngStats4: total=100 mean=-0.0426861 sd=0.809629 min=-1.89341 max=2.43256
-[       OK ] Solitaire.Stats (52513 ms)
-[----------] 1 test from Solitaire (52513 ms total)
+padStats1: total=100 mean=0.0172868 sd=0.999158 min=-1.95516 max=2.32562
+padStats2: total=100 mean=12.5048 sd=1.20357 min=8.64055 max=15.8754
+padStats3: total=100 mean=2.35652 sd=0.990043 min=-0.450297 max=4.97382
+padStats4: total=100 mean=0.502095 sd=0.939663 min=-1.48394 max=2.53839
+rngStats1: total=100 mean=-0.121089 sd=1.06763 min=-2.43083 max=2.8813
+rngStats2: total=100 mean=-0.0510735 sd=0.935075 min=-1.79318 max=2.67325
+rngStats3: total=100 mean=-0.0143499 sd=1.07533 min=-2.01461 max=4.01468
+rngStats4: total=100 mean=0.0467377 sd=1.03348 min=-2.1879 max=2.98166
+[       OK ] Solitaire.Stats (49844 ms)
+[----------] 1 test from Solitaire (49844 ms total)
 
 [----------] Global test environment tear-down
-[==========] 2 tests from 2 test cases ran. (52513 ms total)
+[==========] 2 tests from 2 test cases ran. (49844 ms total)
 [  PASSED  ] 2 tests.

@@ -83,7 +83,7 @@ double z_luck(const std::vector<int> &counts) {
     z += pow(inv_sigma*(counts[i]-mu),2);
   }
 
-  z = sqrt(z)-sqrt((counts.size()-1)-0.5);
+  z = sqrt(2.0)*(sqrt(z)-sqrt((counts.size()-1)-0.5));
 
   return z;
 }

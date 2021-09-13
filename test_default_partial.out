@@ -1,0 +1,59 @@
+[==========] Running 1 test from 1 test case.
+[----------] Global test environment set-up.
+[----------] 1 test from Stats
+[ RUN      ] Stats.Default
+at z=0 out of 10000:
+n,cipherZth,cipherOffset,cutZth,cutOffset,cipherMean,cipherSd,cipher2Mean,cipher2Sd,cutMean,cutSd,cut2Mean,cut2Sd,xyMean,xySd
+40,0,3,2,-1,0.504691,0,-0.436748,0,0.233947,0,1.02636,0,-0.286602,0
+1e+08/1e+10(1%)
+at z=100 out of 10000:
+n,cipherZth,cipherOffset,cutZth,cutOffset,cipherMean,cipherSd,cipher2Mean,cipher2Sd,cutMean,cutSd,cut2Mean,cut2Sd,xyMean,xySd
+40,0,3,2,-1,-0.0935634,0.986771,-0.16195,1.04702,-0.0272655,0.994561,0.0579425,0.880689,1.05962,0.975319
+2e+08/1e+10(2%)
+at z=200 out of 10000:
+n,cipherZth,cipherOffset,cutZth,cutOffset,cipherMean,cipherSd,cipher2Mean,cipher2Sd,cutMean,cutSd,cut2Mean,cut2Sd,xyMean,xySd
+40,0,3,2,-1,-0.036479,1.01379,-0.0902126,1.01435,0.0209681,0.965191,0.0398001,0.91575,1.03672,0.969077
+3e+08/1e+10(3%)
+at z=300 out of 10000:
+n,cipherZth,cipherOffset,cutZth,cutOffset,cipherMean,cipherSd,cipher2Mean,cipher2Sd,cutMean,cutSd,cut2Mean,cut2Sd,xyMean,xySd
+40,0,3,2,-1,-0.0486917,0.990041,-0.0401103,0.985257,-0.00630243,0.924937,0.0355544,0.927969,0.974128,0.965698
+4e+08/1e+10(4%)
+at z=400 out of 10000:
+n,cipherZth,cipherOffset,cutZth,cutOffset,cipherMean,cipherSd,cipher2Mean,cipher2Sd,cutMean,cutSd,cut2Mean,cut2Sd,xyMean,xySd
+40,0,3,2,-1,-0.0329893,0.99092,0.0108469,0.991787,0.0143435,0.929225,0.0303022,0.926796,0.966142,0.970698
+5e+08/1e+10(5%)
+at z=500 out of 10000:
+n,cipherZth,cipherOffset,cutZth,cutOffset,cipherMean,cipherSd,cipher2Mean,cipher2Sd,cutMean,cutSd,cut2Mean,cut2Sd,xyMean,xySd
+40,0,3,2,-1,-0.0427461,0.962057,0.0217739,0.989886,0.0106687,0.930195,0.0382787,0.950887,0.978925,0.968846
+6e+08/1e+10(6%)
+at z=600 out of 10000:
+n,cipherZth,cipherOffset,cutZth,cutOffset,cipherMean,cipherSd,cipher2Mean,cipher2Sd,cutMean,cutSd,cut2Mean,cut2Sd,xyMean,xySd
+40,0,3,2,-1,-0.0325832,0.958416,0.025191,0.980648,-0.00496388,0.945193,0.0581214,0.989338,0.947026,0.982356
+7e+08/1e+10(7%)
+at z=700 out of 10000:
+n,cipherZth,cipherOffset,cutZth,cutOffset,cipherMean,cipherSd,cipher2Mean,cipher2Sd,cutMean,cutSd,cut2Mean,cut2Sd,xyMean,xySd
+40,0,3,2,-1,0.00615368,0.967205,0.0256994,0.976665,-0.00734541,0.952981,0.0604896,0.996914,0.941047,0.98245
+8e+08/1e+10(8%)
+at z=800 out of 10000:
+n,cipherZth,cipherOffset,cutZth,cutOffset,cipherMean,cipherSd,cipher2Mean,cipher2Sd,cutMean,cutSd,cut2Mean,cut2Sd,xyMean,xySd
+40,0,3,2,-1,-0.00743496,0.972701,0.0179882,0.973612,-0.0349763,0.965236,0.0539522,1.00364,0.927854,0.997652
+9e+08/1e+10(9%)
+at z=900 out of 10000:
+n,cipherZth,cipherOffset,cutZth,cutOffset,cipherMean,cipherSd,cipher2Mean,cipher2Sd,cutMean,cutSd,cut2Mean,cut2Sd,xyMean,xySd
+40,0,3,2,-1,-0.0101839,0.957397,-0.000919418,0.997272,-0.0356856,0.972096,0.0591099,1.00598,0.937347,0.997923
+1e+09/1e+10(10%)
+at z=1000 out of 10000:
+n,cipherZth,cipherOffset,cutZth,cutOffset,cipherMean,cipherSd,cipher2Mean,cipher2Sd,cutMean,cutSd,cut2Mean,cut2Sd,xyMean,xySd
+40,0,3,2,-1,-0.010269,0.967119,-0.0156935,1.00392,-0.0338968,0.971172,0.0626832,0.996486,0.933821,1.00528
+1.1e+09/1e+10(11%)
+at z=1100 out of 10000:
+n,cipherZth,cipherOffset,cutZth,cutOffset,cipherMean,cipherSd,cipher2Mean,cipher2Sd,cutMean,cutSd,cut2Mean,cut2Sd,xyMean,xySd
+40,0,3,2,-1,-0.0135542,0.97035,-0.0107686,1.00601,-0.0260672,0.987609,0.069657,1.00153,0.933811,1.00217
+1.2e+09/1e+10(12%)
+at z=1200 out of 10000:
+n,cipherZth,cipherOffset,cutZth,cutOffset,cipherMean,cipherSd,cipher2Mean,cipher2Sd,cutMean,cutSd,cut2Mean,cut2Sd,xyMean,xySd
+40,0,3,2,-1,0.00360818,0.96809,-0.0109204,1.01769,-0.0341434,0.995042,0.0651074,1.01028,0.937966,1.00236
+1.3e+09/1e+10(13%)
+at z=1300 out of 10000:
+n,cipherZth,cipherOffset,cutZth,cutOffset,cipherMean,cipherSd,cipher2Mean,cipher2Sd,cutMean,cutSd,cut2Mean,cut2Sd,xyMean,xySd
+40,0,3,2,-1,-0.00228063,0.967651,-0.013244,1.0233,-0.0197859,0.991438,0.0649662,1.00587,0.944063,1.00248
