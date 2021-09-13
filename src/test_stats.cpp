@@ -349,8 +349,8 @@ TEST(Deck,Luck) {
   for (int trial=0; trial<trials; ++trial) {
     int a0 = rng.next(0,n-1);
     int b = rng.next(0,n-1);
-    ++bins[a];
-    ++bins2[a][b];
+    ++bins[a0];
+    ++bins2[a0][b];
     ++bins3[a0][a1];
     a1=a0;
   }
