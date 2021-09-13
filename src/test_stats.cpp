@@ -43,7 +43,7 @@ double z_luck(const std::vector<int> &counts) {
     z += pow(inv_sigma*(counts[i]-mu),2);
   }
 
-  z = sqrt(z)-sqrt((counts.size()-1)-0.5);
+  z = sqrt(2.0)*(sqrt(z)-sqrt((counts.size()-1)-0.5));
 
   return z;
 }
@@ -67,7 +67,7 @@ double z2_luck(const std::vector< std::vector<int> > &counts) {
     }
   }
 
-  z2 = sqrt(z2)-sqrt(pow(counts.size(),2)-1.5);
+  z2 = sqrt(2.0)*(sqrt(z2)-sqrt(pow(counts.size(),2)-1.5));
   return z2;
 }
 
@@ -134,6 +134,15 @@ struct Stats {
     return sqrt(sum2/total-pow(sum/total,2));
   }
 
+  void print(std::ostream &out) const {
+    out << "total=" << total << " mean=" << mean() << " sd=" << sd() << " min=" << min << " max=" << max;
+
+  }
+
+  void println(std::ostream &out) const {
+    print(out);
+    out << std::endl;
+  }
 };
 
 struct DeckStats {
@@ -280,8 +289,8 @@ struct DeckStats {
 TEST(Stats,Default) {
   DeckStats stats;
   stats.n = 40;
-  stats.zTrials = 10*10;
-  stats.tTrials = 10000*10000;
+  stats.zTrials = 100*100;
+  stats.tTrials = 1000*1000;
   stats.cfg = DeckConfig::DEFAULT;
   stats.progress = true;
   stats.row();
@@ -336,35 +345,48 @@ TEST(Stats,OptTopMessage) {
 
 TEST(Deck,Luck) {
   OS_RNG rng;
+  int zTrials = 100*100;
 
-  int trials = 10000*10000;
+  int tTrials = 100*100;
 
   int n = 40;
+
+  Stats s1,s2,s3;
+
+  for (int z=0; z<zTrials; ++z) {
 
   std::vector < int > bins(n,0);
   std::vector < std::vector < int > > bins2(n, std::vector <int> (n, 0));
   std::vector < std::vector < int > > bins3(n, std::vector <int> (n, 0));  
 
   int a0=0,a1=rng.next(0,n-1);
-  for (int trial=0; trial<trials; ++trial) {
+  for (int t=0; t<tTrials; ++t) {
     int a0 = rng.next(0,n-1);
     int b = rng.next(0,n-1);
-    ++bins[a];
-    ++bins2[a][b];
-    ++bins3[a0][a1];
+    ++bins[a0];
+    ++bins2[a0][b];
+    if (t > 0) {
+      ++bins3[a0][a1];
+    }
     a1=a0;
   }
 
-  double z=z_luck(bins);
+  double z1=z_luck(bins);
   double z2=z2_luck(bins2);
-  double z3=z2_luck(bins3);  
+  double z3=z2_luck(bins3);
 
-  std::cout << "z_luck(rng)=" << z << std::endl;
-  std::cout << "z2_luck(rng,rng)=" << z2 << std::endl;
-  std::cout << "z2_luck(rng2)=" << z3 << std::endl;  
+  //  std::cout << "z_luck(rng)=" << z1 << std::endl;
+  //  std::cout << "z2_luck(rng,rng)=" << z2 << std::endl;
+  //  std::cout << "z2_luck(rng2)=" << z3 << std::endl;
+  
+  s1.add(z1);
+  s2.add(z2);
+  s3.add(z3);
+  }
 
-  ASSERT_LT(fabs(z),8);
-  ASSERT_LT(fabs(z2),8);  
+  std::cout << "stats rng: "; s1.print(std::cout); std::cout << std::endl;
+  std::cout << "stats rng,rng: "; s2.print(std::cout); std::cout << std::endl;
+  std::cout << "stats rng2: "; s3.print(std::cout); std::cout << std::endl;  
 }
 
 int main(int argc, char** argv) {

@@ -14,6 +14,20 @@ TEST(TEST_RNG,Stats) {
   }
 }
 
+TEST(TEST_RNG,Tail) {
+  int n = 17;
+  TEST_RNG tail(uint32_t(-100*n));
+
+  uint32_t state;
+  for (;;) {
+    state=tail.m_state;
+    tail.next(0,n-1);
+    if (tail.m_state == 0) break;
+  }
+  ASSERT_EQ((state+1) % n, 0);
+  ASSERT_LT(uint32_t(state+n),17);
+}
+
 TEST(OS_RNG,Stats) {
   int n = 1000000;
   int counts[10][10];
