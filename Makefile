@@ -31,8 +31,10 @@ CXXFLAGS=-pthread -Iinclude -g -O2 -std=c++17 -fPIC
 
 include Makefile.googletest
 
+FIND ?= $(shell if [ `uname` = "Darwin" ] ; then echo find -E ; else echo find -regextype posix-extended ; fi)
+
 # all not-main and not-test source files in the src folder
-PARTS=$(shell find src -name '*.cpp' -and -not \( -name '.*' -or -name 'main_*' -or -name 'test_*' \) )
+PARTS=$(shell $(FIND) src -iregex '[a-z0-9].*\.(cpp)' -and -not \( -name '.*' -or -name 'main_*' -or -name 'test_*' \) )
 # src/XXXX.cpp -> tmp/XXXX.cpp.o object files
 PARTO=$(patsubst src/%.cpp,tmp/%.cpp.o,$(PARTS))
 
