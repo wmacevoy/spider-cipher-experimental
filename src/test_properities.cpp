@@ -311,6 +311,7 @@ TEST(Properties,SwapFirstLast) {
   Deck swapped(n);
   swapped.cards[0]=39;
   swapped.cards[39]=0;
+  
   P(deck);
   T(deck,21);
   P(deck,-1);
@@ -319,9 +320,30 @@ TEST(Properties,SwapFirstLast) {
   T(deck);
   X(deck);
   T(deck,-1);
+  
   ASSERT_EQ(deck,swapped);
   ASSERT_EQ(xform("T^-1 X T X R P^-1 T^21 P"),swapped);
   ASSERT_EQ(xform("S"),swapped);  
+}
+
+//
+// since bubble sort only uses neighbouring pair swaps,
+// this is sufficient to guarantee any permutation is reachable.  QED!
+//
+TEST(Properties,Bubble) {
+  int n=40;
+  for (int k=0; k<39; ++k) {
+    Deck deck(n);
+    Deck swapped(n);
+    swapped.cards[k]=k+1;
+    swapped.cards[k+1]=k;
+    
+    T(deck,k+1);
+    S(deck);
+    T(deck,-(k+1));
+
+    ASSERT_EQ(deck,swapped);
+  }
 }
 
 TEST(Properties,ExchangeDiamondsSpades) {
@@ -345,73 +367,6 @@ TEST(Properties,ExchangeDiamondsSpades) {
   ASSERT_EQ(xform("T^10 Y"),exchanged);
   ASSERT_EQ(xform("Z"),exchanged);  
 }
-
-TEST(Properties,Tester) {
-// R = P^-1 T^20 P  
-  p("P^-1 T^19 P"); 
-}
-
-// TEST(Properties,OutFaroShuffle) {
-//   DeckConfig cfg;
-//   cfg.cutZth = 2;
-//   cfg.cutOffset = -1;
-//   cfg.cipherZth = 0;
-//   cfg.cipherOffset = 39;
-//   retain<const DeckConfig> as(&cfg);
-
-//   ASSERT_EQ(&cfg, &Deck::config());
-  
-//   int n = 40;
-//   Deck a(n);
-//   Deck b(n);
-//   for (int i=0; i<n; ++i) {
-//     b.cards[i]=Card((i%2 == 0) ? (i/2) : ((i-1)/2)+n/2);
-//   }
-
-//   std::vector<Card> tmp;
-
-//   Search search(a,b);
-//   search.maxDist = 10;
-//   while (!search.done()) {
-//     std::cout << "search.dist = " << search.dist << std::endl;
-//     search.grow();
-//   }
-
-//   ASSERT_TRUE(search.found());
-  
-//   auto path = search.paths[0];
-//   std::cout << "search path (n=" << n << " len=" << path.size() << "): " << path << std::endl;
-//   for (auto card : path) {
-//     a.mix(card);
-//       std::cout << "after mix " << card << ":" << a << std::endl;
-//   }
-//   ASSERT_EQ(a.cards,b.cards);
-// }
-
-
-
-/* #if 0
-TEST(Properties,Search) {
-  int n = 40;
-  Deck a(n);
-  Deck b(n);
-  a.pseudoShuffle(b.cards[0]);
-  
-  Search search(a,b);
-  search.find();
-  auto path = search.paths[0];
-  
-  std::cout << "search path (n=" << n << " len=" << path.size() << "): " << path << std::endl;
-  for (auto card : path) {
-    a.mix(card);
-    std::cout << "after mix " << card << ":" << a << std::endl;
-  }
-  ASSERT_EQ(a.cards,b.cards);
-}
-*/
-
-// T^-1 P^-1 R P T P^-1 R P:  T^-1 X T X
-// T^-1 P^-1 R P T P^-1 R P:  -2 2 -2 2 etc
 
 int main(int argc, char** argv) {
   if (argc > 1 && argv[1][0] != '-') {
