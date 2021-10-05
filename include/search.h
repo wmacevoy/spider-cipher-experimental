@@ -29,10 +29,15 @@ namespace spider {
 
     Search(const Deck &_from, const Deck &_to);
     bool done() const;
+    bool found() const;
     void grow();
     void find();
     void growReverse();
     void growForward();
   };
+
+  bool SearchLite(const Deck &from, int fromDist, 
+		  const Deck &to, int toDist, 
+		  std::vector<int> &path, bool cycle=false);
 
 }

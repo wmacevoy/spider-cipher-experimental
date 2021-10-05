@@ -122,11 +122,112 @@ TEST(Search,Cycle) {
     Search search(a,b);
     search.find();
     auto path = search.paths[0];
+    std::cout << "cut zth=" << a.config().cutZth << " offset=" << a.config().cutOffset << std::endl;
     std::cout << "cycle path (n=" << n << " len=" << path.size() << "): " << path << std::endl;
     for (auto card : path) {
       a.mix(card);
+      std::cout << "after mix " << card << ":" << a << std::endl;
     }
     ASSERT_EQ(a,b);
+  }
+}
+
+TEST(SearchLite,Forward) {
+  for (auto n : {10, 40, 41, 52, 54}) {
+    for (auto len : {1,2,3}) {
+      Deck a(n);
+      Deck b(n);
+      std::vector<int> expect(len);
+      for (int i=0; i<len; ++i) {
+	expect[i]=(33*i+17) % a.modulus();
+      }
+      for (int i=0; i<len; ++i) {
+	std::vector<Card> tmp;
+	Deck::cut(b.cards,expect[i],tmp);
+	Deck::backFrontShuffle(tmp,b.cards);
+      }
+      {
+	int maxToDist = len;
+	int maxFromDist = 0;
+	std::vector<int> result;
+	bool found = SearchLite(a,maxToDist,b,maxFromDist,result);
+	ASSERT_TRUE(found);
+	ASSERT_EQ(expect,result);
+      }
+    }
+  }
+}
+
+TEST(SearchLite,Backward) {
+  for (auto n : {10, 40, 41, 52, 54}) {
+    for (auto len : {1,2,3}) {
+      Deck a(n);
+      Deck b(n);
+      std::vector<int> expect(len);
+      for (int i=0; i<len; ++i) {
+	expect[i]=(33*i+17) % a.modulus();
+      }
+      for (int i=0; i<len; ++i) {
+	std::vector<Card> tmp;
+	Deck::cut(b.cards,expect[i],tmp);
+	Deck::backFrontShuffle(tmp,b.cards);
+      }
+      {
+	int maxToDist = 0;
+	int maxFromDist = len;
+	std::vector<int> result;
+	bool found = SearchLite(a,maxToDist,b,maxFromDist,result);
+	ASSERT_TRUE(found);
+	ASSERT_EQ(expect,result);
+      }
+    }
+  }
+}
+
+TEST(SearchLite,Bidirectional) {
+  for (auto n : {10, 40, 41, 52, 54}) {
+    for (auto len : {1,2,3}) {
+      Deck a(n);
+      Deck b(n);
+      std::vector<int> expect(len);
+      for (int i=0; i<len; ++i) {
+	expect[i]=(33*i+17) % a.modulus();
+      }
+      for (int i=0; i<len; ++i) {
+	std::vector<Card> tmp;
+	Deck::cut(b.cards,expect[i],tmp);
+	Deck::backFrontShuffle(tmp,b.cards);
+      }
+      for (int maxToDist = 1; maxToDist < len; ++maxToDist) {
+	int maxFromDist = len-maxToDist;
+	std::vector<int> result;
+	bool found = SearchLite(a,maxToDist,b,maxFromDist,result);
+	ASSERT_TRUE(found);
+	ASSERT_EQ(expect,result);
+      }
+    }
+  }
+}
+
+TEST(SearchLite,Cycle) {
+  for (auto n : {10, 40}) {
+    Deck a(n);
+    Deck b(n);
+    std::vector<int> result;
+    bool ok = false;
+    for (int len = 1; len <= 10; ++len) {
+      int maxToDist= len-len/2;
+      int maxFromDist = len - maxToDist;
+      std::cout << "n=" << n << " len=" << len << " maxFromDist=" << maxFromDist << " maxToDist=" << maxToDist << std::endl;
+      bool found = SearchLite(a,maxToDist,b,maxFromDist,result,true);
+      if (found) {
+	for(auto x : result) 	std::cout << " " << x;
+	std::cout << endl;
+	ok = true;
+	break;
+      }
+    }
+    ASSERT_TRUE(ok);
   }
 }
 

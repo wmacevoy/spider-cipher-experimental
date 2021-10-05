@@ -49,10 +49,10 @@ TEST(Card,Names) {
   io("AD",11);
   io("AH",21);
   io("AS",31);
-  io("10C",0);
-  io("10D",10);
-  io("10H",20);
-  io("10S",30);
+  io("QC",0);
+  io("QD",10);
+  io("QH",20);
+  io("QS",30);
   io("2C",2);
   io("2D",12);
   io("2H",22);
@@ -91,7 +91,7 @@ TEST(Card,Vec1) {
 }
 
 TEST(Card,Vec2) {
-  std::string text="[3H(23),AC(1),10D(10),9S(39)]";
+  std::string text="[3H(23),AC(1),QD(10),9S(39)]";
   std::vector<Card> cards;
   
   cards.push_back(Card(23));

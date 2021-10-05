@@ -88,7 +88,7 @@ namespace spider {
   }
 
   const char * const Card::SUITES[] = { "C","D","H","S","J" };
-  const char * const Card::FACES[] = { "10","A","2","3","4","5","6","7","8","9", "J", "Q", "K" };
+  const char * const Card::FACES[] = { "Q","A","2","3","4","5","6","7","8","9", "10", "J", "K" };
   const char * const Card::JOKER_FACES[] = { "A","B","C","D"};
 
   const Card Card::SHIFT_LOCK_DOWN(39);

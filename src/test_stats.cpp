@@ -97,6 +97,47 @@ std::vector<DeckConfig> configs() {
   return cfgs;
 }
 
+std::vector<DeckConfig> configsCutEasy() {
+  std::vector<DeckConfig> cfgs;
+  DeckConfig cfg;  
+  for (auto cipherZth : {0,1,2}) {
+    cfg.cipherZth = cipherZth;
+    for (auto cipherOffset : {1,2,3,37,38,39}) {
+      cfg.cipherOffset=cipherOffset;
+      for (auto cutZth : {0,1,2}) {
+	if (cutZth == cipherZth) continue;
+	cfg.cutZth = cutZth;
+	for (auto cutOffset : {-1}) {
+	  cfg.cutOffset=cutOffset;
+	  cfgs.push_back(cfg);
+	}
+      }
+    }
+  }
+  return cfgs;
+}
+
+std::vector<DeckConfig> configsCutEasy2() {
+  std::vector<DeckConfig> cfgs;
+  DeckConfig cfg;  
+  for (auto cipherZth : {0,2}) {
+    cfg.cipherZth = cipherZth;
+    for (auto cipherOffset : {1,2,3,37,38,39}) {
+      cfg.cipherOffset=cipherOffset;
+      for (auto cutZth : {0,2}) {
+	if (cutZth == cipherZth) continue;
+	cfg.cutZth = cutZth;
+	for (auto cutOffset : {-1}) {
+	  cfg.cutOffset=cutOffset;
+	  cfgs.push_back(cfg);
+	}
+      }
+    }
+  }
+  return cfgs;
+}
+
+
 struct Stats {
   double total;
   double sum;
@@ -297,11 +338,16 @@ TEST(Stats,Default) {
 }
 
 TEST(Stats,Opt) {
-  std::vector < DeckConfig > cfgs = configs();
+  std::vector < DeckConfig > cfgs = configsCutEasy2();
   std::vector < int > ns = {40};
   DeckStats stats;
-  stats.zTrials = 24;
+  stats.zTrials = 30*30;
   stats.tTrials = 1000*1000;
+  stats.messageLen = 1000;
+  stats.progress = true;
+  std::cout << "zTrials=" << stats.zTrials << std::endl;
+  std::cout << "tTrials=" << stats.tTrials << std::endl;
+  std::cout << "messageLen=" << stats.messageLen << std::endl;  
   for (auto n : ns) {
     stats.n = n;
     for (auto cfg : cfgs) {

@@ -118,5 +118,53 @@ namespace spider {
     fboundary.swap(newBoundary);
     ++dist;
   };
+
+  bool Search::found() const {
+    return paths.size() > 0;
+  }
+
+  bool SearchLite(const Deck &from, int fromDist, 
+		  const Deck &to, int toDist, 
+		  std::vector<int> &path, bool cycle) {
+
+    if (from == to && !cycle) {
+      return true;
+    }
+
+    int n=from.cards.size();
+
+    if (fromDist > 0) {
+      Deck step(from);
+      Deck temp1(step);
+      Deck temp2(step);      
+      for (int i=0; i<n; ++i) {
+	Deck::cut(step.cards,i,temp1.cards);
+	Deck::backFrontShuffle(temp1.cards,temp2.cards);
+	if (SearchLite(temp2, fromDist-1, to, toDist, path)) {
+	  path.insert(path.begin(),i);
+	  return true;
+	}
+      }
+      return false;
+    }
+    
+    if (toDist > 0) {
+      Deck step(to);
+      Deck temp1(step);
+      Deck temp2(step);      
+      for (int i=0; i<n; ++i) {
+	Deck::backFrontUnshuffle(step.cards,temp1.cards);
+	Deck::cut(temp1.cards,n-i,temp2.cards);
+	if (SearchLite(from, fromDist, temp2, toDist-1, path)) {
+	  path.push_back(i);
+	  return true;
+	}
+      }
+      return false;
+    }
+
+    return false;
+  }
 }
+
 

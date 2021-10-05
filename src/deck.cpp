@@ -1,3 +1,4 @@
+
 #include <vector>
 #include <algorithm>
 #include <cassert>
@@ -192,6 +193,7 @@ namespace spider {
 
     cut(temp,topLoc,cards);
   }
+
 
   void Deck::cut(const std::vector<Card> &in, int cutLoc, std::vector<Card> &out) {
     out.resize(in.size());
