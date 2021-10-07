@@ -5,9 +5,55 @@
 #include "deck.h"
 #include "search.h"
 
+
 using namespace std;
 using namespace spider;
 
+void swap(Card &a, Card &b) {
+  Card tmp=a;
+  a=b;
+  b=tmp;
+}
+
+void frontBackShuffle(const std::vector<Card> &in, std::vector<Card> &out) {
+  out.resize(0);
+  for (int i=0; i<in.size(); ++i) {
+    out.insert((i%2 == 0) ? std::begin(out) : std::end(out), in[i]);
+  }
+}
+
+void backFrontShuffle(const std::vector<Card> &in, std::vector<Card> &out) {
+  out.resize(0);
+  for (int i=0; i<in.size(); ++i) {
+    out.insert((i%2 == 0) ? std::end(out) : std::begin(out), in[i]);
+  }
+}
+
+void cut(const std::vector<Card> &in, int cutPos, std::vector<Card> &out) {
+  int n = in.size();
+  out.resize(n);
+  for (int i=0; i<n; ++i) {
+    out[i]=in[(i+cutPos) % n];
+  }
+}
+
+void reverse(const std::vector<Card> &in, std::vector<Card> &out) {
+  int n = in.size();
+  out.resize(n);
+  for (int i=0; i<n; ++i) {
+    out[i]=in[(n-1)-i];
+  }
+}
+
+void exchangePairs(const std::vector<Card> &in, std::vector<Card> &out) {
+  int n = in.size();
+  out.resize(n);
+  for (int i=0; i<n; i += 2) {
+    int j=i+1;
+    out[i]=in[j];
+    out[j]=in[i];
+  }
+}
 
 void print(const Deck &deck,
 	   std::ostream &out=std::cout,
@@ -41,6 +87,15 @@ void P(Deck &deck,int p=1) {
   }
 }
 
+void Q(Deck &deck,int p=1) {
+  std::vector<Card> tmp;
+  for (int  i=0; i<p; ++i) {
+    frontBackShuffle(deck.cards,tmp);
+    deck.cards.swap(tmp);
+  }
+}
+
+
 void R(Deck &deck, int p=1) {
   int n = deck.cards.size();
   p = ((p%2)+2)%2;
@@ -62,7 +117,6 @@ void S(Deck &deck, int p=1) {
     deck.cards[n-1]=tmp;
   }
 }
-
 
 void X(Deck &deck,int p=1) {
   int n = deck.cards.size();
@@ -115,7 +169,6 @@ void Z(Deck &deck,int p=1) { // CDHS -> CSHD(switch D(+10) with spades (+30))
   }
 }
 
-
 void xformStream(Deck &deck, std::istringstream &in) {
   int p=1;
   char t;
@@ -130,6 +183,7 @@ void xformStream(Deck &deck, std::istringstream &in) {
   xformStream(deck,in);
   switch(t) {
   case 'P': P(deck,p); break;
+  case 'Q': Q(deck,p); break;    
   case 'T': T(deck,p); break;
   case 'S': S(deck,p); break;    
   case 'R': R(deck,p); break;
@@ -156,7 +210,7 @@ Deck p(const std::string x, std::ostream &out=std::cout, bool delta=true) {
   return res;
 }
 
-TEST(Properties,Cycle) {
+TEST(Properties,Cycle2) {
   int n=40;
   Deck deck(n);
   for (int i=0; i<9; ++i) {
@@ -164,6 +218,30 @@ TEST(Properties,Cycle) {
   }
   ASSERT_EQ(deck,Deck(n));
 }
+
+TEST(Properties,PseudoShuffleCycleLengths) {
+  std::vector<int> lengths = {
+		  27,  30,   9, 110,  12,  90,  99, 234, 105,  12,
+		  60, 126, 115,  56,  20, 174,  12,  66, 105,  20,
+		  39,  40,  39,  60,  72, 150,  60,  40,  39, 264,
+		  36, 380,  75,  20,  60,  40, 182, 190, 440,  24
+  };
+  
+  int n=40;
+  for (int c=0; c<n; ++c) {
+    Deck deck(n);
+    Deck id(n);
+    
+    int length = 0;
+    for (;;) {
+      deck.pseudoShuffle(deck.cards[c]);
+      ++length;
+      if (deck == id) break;
+    }
+    ASSERT_EQ(lengths[c],length);
+  }
+}
+
 
 TEST(Properties,Translations) {
   int n=40;
@@ -204,6 +282,19 @@ TEST(Properties,BackFrontShuffle) {
   ASSERT_EQ(deck,backFrontShuffle);
 }
 
+
+TEST(Properties,ReverseBackFrontShuffleIsFrontBackShuffle) {
+  int n = 40;
+  Deck deck1(n);
+  Deck deck2(n);
+  Deck rbfShuffle(n);
+  Deck::backFrontShuffle(deck1.cards,rbfShuffle.cards);
+  R(rbfShuffle);
+  Deck fbShuffle(n);
+  frontBackShuffle(deck2.cards,fbShuffle.cards);
+  ASSERT_EQ(fbShuffle,rbfShuffle);
+}
+
 TEST(Properties,InverseBackFrontShuffle) {
   int n = 40;
   Deck deck(n);
@@ -237,6 +328,33 @@ TEST(Properties,Reverse) {
   ASSERT_EQ(xform("P^-1 T^20 P"),reversed);
   ASSERT_EQ(xform("R"),reversed);  
 }
+
+TEST(Properties,ReversePseudoShuffleCycleLengths) {
+  std::vector<int> lengths = {
+			      39,  20, 105,  66,  12, 174,  20,  56, 115, 126,
+			      60,  12, 105, 234,  99,  90,  12, 110,   9,  30,
+			      27,  24, 440, 190, 182,  40,  60,  20,  75, 380,
+			      36, 264,  39,  40,  60, 150,  72,  60,  39,  40
+  };
+  
+  int n=40;
+  for (int c=0; c<n; ++c) {
+    Deck deck(n);
+    Deck id(n);
+    
+    int length = 0;
+    for (;;) {
+      T(deck,c);
+      Q(deck);
+      ++length;
+      if (deck == id) break;
+    }
+    //    std::cout << setw(4) << length << ",";
+    //	if (c%10 == 9) std::cout << endl;
+    ASSERT_EQ(lengths[c],length) << " c=" << c;
+  }
+}
+	
 
 TEST(Properties,ExchangePairs) {
   int n = 40;
@@ -325,6 +443,7 @@ TEST(Properties,SwapFirstLast) {
   ASSERT_EQ(xform("T^-1 X T X R P^-1 T^21 P"),swapped);
   ASSERT_EQ(xform("S"),swapped);  
 }
+
 
 //
 // since bubble sort only uses neighbouring pair swaps,

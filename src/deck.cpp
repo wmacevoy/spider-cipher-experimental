@@ -247,7 +247,7 @@ namespace spider {
     backFrontShuffle(temp,cards);
     int topLoc = forward(cards,0,0);
   }
-  
+
   bool Deck::operator<(const Deck &deck) const {
     if (cards.size() != deck.cards.size()) {
       return cards.size() < deck.cards.size();
