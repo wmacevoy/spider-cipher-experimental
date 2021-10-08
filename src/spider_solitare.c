@@ -23,23 +23,20 @@ static const unsigned MASK[] = {0U,~0U};
 #endif
 
 #define FIND5(deck,offset,card)				\
-  FIND1(deck,offset+0,card)				\
-    FIND1(deck,offset+1,card)				\
-    FIND1(deck,offset+2,card)				\
-    FIND1(deck,offset+3,card)				\
+  FIND1(deck,offset+0,card) |				\
+    FIND1(deck,offset+1,card) |				\
+    FIND1(deck,offset+2,card) |				\
+    FIND1(deck,offset+3,card) |				\
     FIND1(deck,offset+4,card)
-
+  
 #define FIND10(deck,offset,card)	\
-  FIND5(deck,offset,card) |		\
-    FIND5((deck),offset+5,card)
+  FIND5(deck,offset,card)|FIND5((deck),offset+5,card)
 
-#define FIND20(deck,offset,card)	\
-  FIND10(deck,offset,card) |		\
-    FIND10(deck,offset+10,card)
+#define FIND20(deck,offset,card)			\
+  FIND10(deck,offset,card)|FIND10(deck,offset+10,card)
 
-#define FIND(deck,card)	 (FIND20(deck,0,card) | FIND20(deck,20,card))
-
-#define AFTER(deck,card)  ((deck)[ADD(FIND(deck,card),1)])
+#define FIND(deck,card)				\
+  (FIND20(deck,0,card)|FIND20(deck,20,card))
 
 int cardFaceNo(Card card)
 {
@@ -92,11 +89,7 @@ void deckBackFrontShuffle(Deck input, Deck output)
 
 int deckFindCard(Deck deck,Card card)
 {
-  unsigned ans = 0;
-  for (unsigned i=0; i<CARDS; ++i) {
-    ans |= (i & MASK[deck[i]==card]);
-  }
-  return ans;
+  return FIND(deck,card);
 }
 
 void deckPseudoShuffle(Deck deck, int cutLoc) {
