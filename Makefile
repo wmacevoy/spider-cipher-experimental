@@ -31,11 +31,11 @@ CXXFLAGS=-pthread -Iinclude -g -O2 -std=c++17 -fPIC
 
 include Makefile.googletest
 
-FIND ?= $(shell if [ `uname` = "Darwin" ] ; then echo find -E ; else echo find -regextype posix-extended ; fi)
+FIND_SRC ?= $(shell if [ `uname` = "Darwin" ] ; then echo find src -E ; else echo find src -regextype posix-extended ; fi)
 
 # all not-main and not-test source files in the src folder
-CPP_PARTS=$(shell $(FIND) src -iregex '[a-z0-9].*\.(cpp)' -and -not \( -name '.*' -or -name 'main_*' -or -name 'test_*' \) )
-C_PARTS=$(shell $(FIND) src -iregex '[a-z0-9].*\.(c)' -and -not \( -name '.*' -or -name 'main_*' -or -name 'test_*' \) )
+CPP_PARTS=$(shell $(FIND_SRC) -iregex '[a-z0-9].*\.(cpp)' -and -not \( -name '.*' -or -name 'main_*' -or -name 'test_*' \) )
+C_PARTS=$(shell $(FIND_SRC) -iregex '[a-z0-9].*\.(c)' -and -not \( -name '.*' -or -name 'main_*' -or -name 'test_*' \) )
 # src/XXXX.cpp -> tmp/XXXX.cpp.o object files
 CPP_PARTO=$(patsubst src/%.cpp,tmp/%.cpp.o,$(CPP_PARTS))
 C_PARTO=$(patsubst src/%.cpp,tmp/%.c.o,$(C_PARTS))
