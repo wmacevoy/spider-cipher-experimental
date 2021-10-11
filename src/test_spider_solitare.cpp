@@ -1,3 +1,5 @@
+
+#include <wchar.h>
 #include "gtest/gtest.h"
 #include "spider_solitare.h"
 
@@ -48,7 +50,7 @@ Card testCutPad(Deck deck) {
 }
 
 Card testCipherPad(Deck deck) {
-  int markCard = (deck[MARK_ZTH]+MARK_OFFSET) % CARDS;
+  int markCard = (deck[MARK_ZTH]+MARK_ADD) % CARDS;
   int markLoc = testFindCard(deck, markCard);
   return deck[(markLoc + 1) % CARDS];
 }
@@ -252,6 +254,50 @@ TEST(Spider,Encode) {
       ASSERT_EQ(code,str[i]);
       j += 2+codeLen;
     }
+    setlocale(LC_CTYPE,"UTF-8");
+    fputws(str,stdout);
+    printf(" => ");
+    fputws(decode,stdout);  
+  }
+
+}
+
+struct TestRandParms {
+  int state;
+};
+
+int testRand(void *voidParms) {
+  TestRandParms *parms = (TestRandParms *) voidParms;
+  ++parms->state;
+    
+  if (parms->state <= PREFIX) {
+    return parms->state % CARDS;
+  } else {
+    int i = (parms->state-1-PREFIX) % CARDS;
+    return CARDS-1-i;
+  }
+}
+
+TEST(Spider,HelloWorld) {
+  const wchar_t *str=L"I❤️Spider - Solitaire is #1!";
+  TestRandParms randParms;
+  randParms.state = 0;
+  int strLen = 0;
+  while (str[strLen] != 0) ++strLen;
+  Deck deck;
+  int maxCardLen = 1000;
+  Card cards[1000];
+
+  for (int i=0; i<CARDS; ++i) {
+    deck[i]=i;
+  }
+  int cardLen=deckEncryptEnvelopeToArray(deck,str,strLen,
+					 testRand,&randParms,cards,maxCardLen);
+  ASSERT_TRUE(cardLen > 0);
+
+  for (int i=0; i<cardLen; ++i) {
+    printf(" %02d",cards[i]);
+    if (i % 9 == 0) printf("\n");
   }
 }
 

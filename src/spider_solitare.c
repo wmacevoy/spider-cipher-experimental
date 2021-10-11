@@ -10,7 +10,7 @@ static const unsigned MASK[] = {0U,~0U};
 #define CUT_PAD(deck) deck[CUT_ZTH]
 #define CUT_CARD(deck,plain) ADD(CUT_PAD(deck),plain)
 
-#define MARK_CARD(deck) ADD(deck[MARK_ZTH],MARK_OFFSET)
+#define MARK_CARD(deck) ADD(deck[MARK_ZTH],MARK_ADD)
 
 #if (1 == 1) == 1
 #define FIND1(deck,offset,card) \
@@ -55,7 +55,7 @@ wchar_t cardFaceFromNo(int cardFaceNo)
 
 wchar_t cardSuiteFromNo(int cardSuiteNo)
 {
-  return L"CDHS"[cardSuiteNo];
+  return L"\u2663\u2665\u2667\u2669"[cardSuiteNo];
 }
 
 Card cardAdd(Card x, Card y)
@@ -173,7 +173,7 @@ int find(const wchar_t *str, int len, int code)
   return -1;
 }
 
-#define WRITE(card) { if (write != NULL) { int writeStatus = write(card,count,writeParms); if (writeStatus != 0) return writeStatus; } ; ++count; }
+#define WRITE(card) { if (write != NULL) { int writeStatus = write(card,writeParms); if (writeStatus != 0) return writeStatus; } ; ++count; }
 #define CHR(i) ((i) < bufLen ? buf[bufLen-1-(i)] : (i)-bufLen < len ? str[(i)-bufLen] : -1)
 #define ORD(shift,chr) find(ALL_CODES[shift],CODE_LEN,chr)
 
@@ -258,15 +258,17 @@ int cardEncodeLen(const wchar_t *str, int len) {
 
 struct CardWriteArrayParms {
   Card *cards;
+  int size;
   int capacity;
 };
 
-int cardWriteToArray(Card card, int position, void *voidParms) {
+int cardWriteToArray(Card card, void *voidParms) {
   CardWriteArrayParms *parms=(CardWriteArrayParms*)voidParms;
-  if (position >= parms->capacity) {
+  if (parms->size >= parms->capacity) {
     return -1;
   }
-  parms->cards[position]=card;
+  parms->cards[parms->size]=card;
+  ++parms->size;
   return 0;
 }
 
@@ -275,6 +277,7 @@ int cardEncodeToArray(const wchar_t *str, int strLen,
 {
   CardWriteArrayParms parms;
   parms.cards=cards;
+  parms.size=0;
   parms.capacity=capacity;
   int status = cardEncodeWrite(str,strLen,cardWriteToArray,&parms);
   return status;
@@ -292,7 +295,7 @@ int cardDecodeWrite(Card *cards, int cardsLen, WideCharWrite *write, void *write
     if (card < 36) {
       if (write != NULL) {
 	int code = ALL_CODES[shift][card];
-	int status = write(code,count,writeParms);
+	int status = write(code,writeParms);
 	if (status != 0) {
 	  return status;
 	}
@@ -320,14 +323,16 @@ int cardDecodeLen(Card *cards, int cardsLen) {
 struct WideCharArrayWrite {
   wchar_t *str;
   int capacity;
+  int size;
 };
 
-int wideCharWriteToArray(wchar_t chr, int position, void *voidParms) {
+int wideCharWriteToArray(wchar_t chr, void *voidParms) {
   WideCharArrayWrite *parms=(WideCharArrayWrite*)voidParms;
-  if (position >= parms->capacity) {
+  if (parms->size >= parms->capacity) {
     return -1;
   }
-  parms->str[position]=chr;
+  parms->str[parms->size]=chr;
+  ++parms->size;
   return 0;
 }
 
@@ -336,12 +341,112 @@ int cardDecodeToArray(Card *cards, int cardsLen,
 
   WideCharArrayWrite parms;
   parms.str = str;
+  parms.size = 0;
   parms.capacity = capacity;
   return cardDecodeWrite(cards,cardsLen,wideCharWriteToArray,&parms);
 }
 
+int cardEnvelopeLen(int encodeLen) {
+  int envelopeLen = encodeLen;
+  envelopeLen += PREFIX/2;
+  if ((envelopeLen % PREFIX) != 0) {
+    envelopeLen += (PREFIX-(envelopeLen%PREFIX));
+  }
+  envelopeLen *= 2;
+  envelopeLen += PREFIX;
+
+  return envelopeLen;
+}
 
 
+struct DeckEncryptEnvelopeWriteParms {
+  Card *deck;
+  CardRead *rng;
+  void *rngParms;
+  int position;
+  CardWrite *write;
+  void *writeParms;
+};
 
+int deckEncryptEnvelopeWrite(int plain, void *voidParms) {
+  DeckEncryptEnvelopeWriteParms *parms=
+    (DeckEncryptEnvelopeWriteParms *)voidParms;
+  
+  if (plain < 0) return plain;
+  int cipher = deckEncryptCard(parms->deck,plain);
+  return parms->write(cipher,parms->writeParms);
+}
 
+int deckEncryptEnvelopEncodeWrite(Card plainCard, void *voidParms) {
+  DeckEncryptEnvelopeWriteParms *parms=
+    (DeckEncryptEnvelopeWriteParms *)voidParms;
 
+  int inject = parms->rng(parms->rngParms);
+  int status = deckEncryptEnvelopeWrite(inject,voidParms);
+  if (status < 0) return status;
+  return deckEncryptEnvelopeWrite(plainCard,voidParms);
+}
+
+int deckEncryptEnvelopeWrite(Deck deck, const wchar_t *str, int strLen, CardRead *rng, void *rngParms, CardWrite *write, void *writeParms)
+{
+  DeckEncryptEnvelopeWriteParms parms;
+  int status;
+  
+  parms.deck = deck;
+  parms.rng = rng;
+  parms.rngParms = rngParms;
+  parms.write = write;
+  parms.writeParms = 0;
+
+  for (int i=0; i<PREFIX; ++i) {
+    int randCard = rng(rngParms);
+    int status = deckEncryptEnvelopeWrite(randCard,&parms);
+    if (status < 0) { 
+      return status;
+    }
+  }
+
+  int len = cardEncodeWrite(str,len,deckEncryptEnvelopEncodeWrite,&parms);
+  if (len < 0) {
+    return len;
+  }
+
+  int pad = 0;
+  while (pad < PREFIX || (len+pad) % 2*PREFIX != 0) {
+    int status = deckEncryptEnvelopEncodeWrite(CARDS-1,&parms);
+    if (status < 0) { 
+      return status;
+    }
+    pad += 2;
+  }
+  return len + pad;
+}
+
+void *RandOpen() {
+  return (void*)fopen("/dev/urandom","rb");
+}
+void RandClose(void *voidParms) {
+  fclose((FILE*)voidParms);
+}
+int RandCard(void *voidParms) {
+  FILE *parms = (FILE*) voidParms;
+  uint32_t x,r;
+  
+  do {
+    int status = fread((char*) &x,sizeof(x),1,parms);
+    if (status < 0) return status;
+    r = x % CARDS;
+  } while (x - r > uint32_t(-CARDS));
+  return r;
+}
+
+int deckEncryptEnvelopeToArray(Deck deck, const wchar_t *str, int strLen, CardRead *rng, void *rngParms, Card *cards, int capacity)
+{
+  CardWriteArrayParms parms;
+  parms.cards=cards;
+  parms.size=0;
+  parms.capacity=capacity;
+  int status = deckEncryptEnvelopeWrite(deck,str,strLen,rng,rngParms,cardWriteToArray,&parms);
+  return status;
+
+}
