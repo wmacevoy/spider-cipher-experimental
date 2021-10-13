@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
 #include <assert.h>
 #include "spider_solitare.h"
 
@@ -149,9 +151,9 @@ Card deckDecryptCard(Deck deck, Card cipherCard) {
   return plainCard;
 }
 
-#define CODE_LEN 36
-#define SHIFT_DOWN 36
-#define SHIFT_UP   37
+#define CODE_LEN        36
+#define SHIFT_DOWN      36
+#define SHIFT_UP        37
 #define SHIFT_LOCK_DOWN 38
 #define SHIFT_LOCK_UP   39
 
@@ -161,7 +163,7 @@ const wchar_t *  UP_CODES = L"ABCDEFGHIJKLMNOPQRSTUVWXYZ{}[]_:!`\U0001F494\u2764
 const wchar_t *ALL_CODES[] = { DOWN_CODES, CODES, UP_CODES };
 
 
-int find(const wchar_t *str, int len, int code)
+static int find(const wchar_t *str, int len, int code)
 {
   if (code >= 0) {
     for (int pos=0; pos<len; ++pos) {
@@ -173,17 +175,30 @@ int find(const wchar_t *str, int len, int code)
   return -1;
 }
 
-#define WRITE(card) { if (write != NULL) { int writeStatus = write(card,writeParms); if (writeStatus != 0) return writeStatus; } ; ++count; }
-#define CHR(i) ((i) < bufLen ? buf[bufLen-1-(i)] : (i)-bufLen < len ? str[(i)-bufLen] : -1)
-#define ORD(shift,chr) find(ALL_CODES[shift],CODE_LEN,chr)
+static int ord(int shift, int code)
+{
+  if (code < 0) return -1;
+  
+  if (shift >= 0) {
+    return find(ALL_CODES[shift],CODE_LEN,code);
+  } else {
+    for (int i=0; i<3; ++i) {
+      if (find(ALL_CODES[i],CODE_LEN,code) >= 0) return -1;
+    }
+    return code;
+  }
+}
 
-int cardEncodeWrite(const wchar_t *str, int len, CardWrite *write, void *writeParms)
+#define WRITE(card) { if (write != NULL) { int writeStatus = write(card,writeParms); if (writeStatus != 0) return writeStatus; } ; ++count; }
+#define CHR(i) (((i) < strLen) ? str[i] : -1)
+#define ORD(shift,chr) ord(shift,chr)
+
+
+int cardEncodeWrite(const wchar_t *str, int strLen, CardWrite *write, void *writeParms)
 {
   int count = 0;
   int shift = 1;
   int next = 1;
-  wchar_t buf[16];
-  int bufLen = 0;
   
   for (;;) {
     int chr = CHR(0);
@@ -191,51 +206,57 @@ int cardEncodeWrite(const wchar_t *str, int len, CardWrite *write, void *writePa
     int pos = ORD(shift,chr);
     
     if (pos >= 0) {
-      WRITE(pos);
-      shift = next;
-      if (bufLen > 0) {
-	--bufLen;
+      if (shift == -1) {
+	int s=4;
+	while ((uint64_t(1)<<s) < uint64_t(chr)) { s += 4; }
+	while (s >= 4) {
+	  s -= 4;
+	  uint8_t hex = (chr >> s) & 0xF;
+	  WRITE(hex);
+	}
+	if (ORD(-1,CHR(1)) >= 0) {
+	  WRITE(SHIFT_LOCK_DOWN);
+	  next=-1;
+	} else {
+	  WRITE(SHIFT_LOCK_UP);
+	  next=0;
+	}
       } else {
-	++str;
-	--len;
+	WRITE(pos);
       }
+      shift = next;
+      ++str;
+      --strLen;
       continue;
     }
-    
-    int en[3]={0,0,0},m=-1;
-    for (int query=0; query<3; ++query) {
-      while (ORD(query,CHR(en[query])) >= 0) {
-	++en[query];
+
+    // find best next shift state en[q] for shift state q-1
+    // preferring nearby shift states for ties.  Ties are
+    // only possible for capital letter A-F sequences, which are
+    // encoded UP and DOWN as CAPS and HEX.  At most 10 (PREFIX)
+    // characters are looked at for
+
+    // look forward only until ties are broken
+    int en[4]={0,0,0,0};
+    for (int el=0; ; ++el) {
+      int ties = 0;
+      for (int q=-1; q<3; ++q) {
+	if (en[q+1] == el && ORD(q,CHR(el)) >= 0) { ++en[q+1]; ++ties; }
       }
-      if (m == -1 || en[m] < en[query]) {
-	m = query;
+      if (ties < 2) break;
+    }
+
+    // choose longer encoding or nearest (larger) shift state for ties
+    int m=-1;
+    for (int q=0; q<3; ++q) {
+      if (en[m+1] < en[q+1] || (en[m+1] == en[q+1] && abs(q-next) <= abs(m-next))) {
+	m = q;
       }
     }
 
-    if (en[m]==0) {
-      if (chr <= 0xFF) {
-	bufLen = 4;
-	buf[bufLen-1]='\\';
-	buf[bufLen-2]='x';
-      } else if (chr <= 0xFFFF) {
-	bufLen = 6;	
-	buf[bufLen-1]='\\';
-	buf[bufLen-2]='u';
-      } else {
-	bufLen = 10;
-	buf[bufLen-1]='\\';
-	buf[bufLen-2]='U';
-      }
-      for (int i=0; i<bufLen-2; ++i) {
-	buf[i]=DOWN_CODES[chr % 16];
-	chr = chr / 16;
-      }
-      ++str;
-      --len;
-      continue;
-    }
-    
-    int lock = (en[m] > 1) || (ORD(next,CHR(1)) < 0);
+    // lock for unicode, multiple matches or next shift state makes no progress
+    int lock = (m == -1) || (en[m+1] > 1) || (ORD(next,CHR(1)) < 0);
+
     while (shift != m) {
       if (shift < m) {
 	++shift;
@@ -283,17 +304,31 @@ int cardEncodeToArray(const wchar_t *str, int strLen,
   return status;
 }
 
-int cardDecodeWrite(Card *cards, int cardsLen, WideCharWrite *write, void *writeParms) {
+int cardDecodeWrite(CardRead *read, void *readParms, WideCharWrite *write, void *writeParms) {
   int count = 0;
   int shift = 1;
   int next = 1;
+  int unicode = -1;
   for (;;) {
-    int card = (cardsLen > 0) ? cards[0] : -1;
-    --cardsLen;
-    ++cards;
-    if (card < 0) return (card == -1) ? count : card;
-    if (card < 36) {
-      if (write != NULL) {
+    int card = read(readParms);
+    if (shift == -1) {
+      if (0 <= card && card < 16) { // base 16 encoding
+	unicode = (unicode > 0 ? 16*unicode : 0) + card;
+      } else if (20 <= card && card < 30) { // base 10 encoding
+	unicode = (unicode > 0 ? 10*unicode : 0) + (card-20);
+      } else {
+	if (write != NULL && unicode >= 0) {
+	  int status = write(unicode,writeParms);
+	  if (status != 0) {
+	    return status;
+	  }
+	}
+	unicode=-1;
+	shift = next;
+	++count;
+      }
+    } else if (0 <= card && card < 36) {
+      if (write != NULL && shift >= 0) {
 	int code = ALL_CODES[shift][card];
 	int status = write(code,writeParms);
 	if (status != 0) {
@@ -302,22 +337,44 @@ int cardDecodeWrite(Card *cards, int cardsLen, WideCharWrite *write, void *write
       }
       shift = next;
       ++count;
-    } else {
-      if ((card == SHIFT_UP || card == SHIFT_LOCK_UP) && shift <= 1) {
-	++shift;
-      }
-      if ((card == SHIFT_DOWN || card == SHIFT_LOCK_DOWN) && shift >= 1) {
-	--shift;
-      }
-      if (card == SHIFT_LOCK_DOWN || card == SHIFT_LOCK_UP) {
-	next = shift;
-      }
+    }
+    if (card < 0) return (card == -1) ? count : card;
+
+    if ((card == SHIFT_UP || card == SHIFT_LOCK_UP) && shift <= 1) {
+      ++shift;
+    }
+    if ((card == SHIFT_DOWN || card == SHIFT_LOCK_DOWN) && shift >= 0) {
+      --shift;
+    }
+    if (card == SHIFT_LOCK_DOWN || card == SHIFT_LOCK_UP) {
+      next = shift;
     }
   }
 }
 
-int cardDecodeLen(Card *cards, int cardsLen) {
-  return cardDecodeWrite(cards,cardsLen,NULL,NULL);
+struct CardStepReadParms {
+  Card *cards;
+  int step;
+  int len;
+};
+
+static int cardStepRead(void *voidParms) {
+  CardStepReadParms *parms = (CardStepReadParms *) voidParms;
+  if (parms->len > 0) {
+    int card = parms->cards[0];
+    parms->cards += parms->step;
+    parms->len -= parms->step;
+  } else {
+    return -1;
+  }
+}
+
+int cardDecodeLen(Card *cards, int step, int len) {
+  CardStepReadParms parms;
+  parms.cards=cards;
+  parms.step=step;
+  parms.len=len;
+  return cardDecodeWrite(cardStepRead,&parms,NULL,NULL);
 }
 
 struct WideCharArrayWrite {
@@ -336,14 +393,18 @@ int wideCharWriteToArray(wchar_t chr, void *voidParms) {
   return 0;
 }
 
-int cardDecodeToArray(Card *cards, int cardsLen,
+int cardDecodeToArray(Card *cards, int cardsStep, int cardsLen,
 		      wchar_t *str, int capacity) {
 
-  WideCharArrayWrite parms;
-  parms.str = str;
-  parms.size = 0;
-  parms.capacity = capacity;
-  return cardDecodeWrite(cards,cardsLen,wideCharWriteToArray,&parms);
+  CardStepReadParms readParms;
+  readParms.cards=cards;
+  readParms.step=cardsStep;
+  readParms.len=cardsLen;
+  WideCharArrayWrite writeParms;
+  writeParms.str = str;
+  writeParms.size = 0;
+  writeParms.capacity = capacity;
+  return cardDecodeWrite(cardStepRead,&readParms,wideCharWriteToArray,&writeParms);
 }
 
 int cardEnvelopeLen(int encodeLen) {
@@ -396,7 +457,7 @@ int deckEncryptEnvelopeWrite(Deck deck, const wchar_t *str, int strLen, CardRead
   parms.rng = rng;
   parms.rngParms = rngParms;
   parms.write = write;
-  parms.writeParms = 0;
+  parms.writeParms = writeParms;
 
   for (int i=0; i<PREFIX; ++i) {
     int randCard = rng(rngParms);
@@ -406,20 +467,20 @@ int deckEncryptEnvelopeWrite(Deck deck, const wchar_t *str, int strLen, CardRead
     }
   }
 
-  int len = cardEncodeWrite(str,len,deckEncryptEnvelopEncodeWrite,&parms);
-  if (len < 0) {
-    return len;
+  int encLen = cardEncodeWrite(str,strLen,deckEncryptEnvelopEncodeWrite,&parms);
+  if (encLen < 0) {
+    return encLen;
   }
 
   int pad = 0;
-  while (pad < PREFIX || (len+pad) % 2*PREFIX != 0) {
+  while (pad < PREFIX/2 || (encLen+pad) % PREFIX != 0) {
     int status = deckEncryptEnvelopEncodeWrite(CARDS-1,&parms);
     if (status < 0) { 
       return status;
     }
-    pad += 2;
+    ++pad;
   }
-  return len + pad;
+  return PREFIX + 2*(encLen+pad);
 }
 
 void *RandOpen() {
@@ -430,14 +491,13 @@ void RandClose(void *voidParms) {
 }
 int RandCard(void *voidParms) {
   FILE *parms = (FILE*) voidParms;
-  uint32_t x,r;
+  uint8_t x;
   
   do {
     int status = fread((char*) &x,sizeof(x),1,parms);
     if (status < 0) return status;
-    r = x % CARDS;
-  } while (x - r > uint32_t(-CARDS));
-  return r;
+  } while (x >= (256-256%CARDS));
+  return x % CARDS;
 }
 
 int deckEncryptEnvelopeToArray(Deck deck, const wchar_t *str, int strLen, CardRead *rng, void *rngParms, Card *cards, int capacity)
@@ -448,5 +508,70 @@ int deckEncryptEnvelopeToArray(Deck deck, const wchar_t *str, int strLen, CardRe
   parms.capacity=capacity;
   int status = deckEncryptEnvelopeWrite(deck,str,strLen,rng,rngParms,cardWriteToArray,&parms);
   return status;
+}
+
+int deckDecryptEnvelopeToArray(Deck deck, const Card *env, int envLen, WideCharWrite *write, void *writeParms) {
+  int j=0;
+  for (int i=0; i<PREFIX; ++i) {
+    Card card = deckDecryptCard(deck,env[i]);
+    if (j < strLen) str[j--]=cardFaceFromNo(cardFaceNo(card));
+    if (j < strLen) str[j--]=cardSuiteFromNo(cardSuiteNo(card));
+    if (j < strLen) str[j--]=(i < PREFIX-1) ? ' ' : ':';
+  }
+  int strLen=cardDecodeToArray(env+PREFIX,2,envLen-PREFIX,str+3*PREFIX,capacity-3*PREFIX);
+  
+  for (int i=(envLen/2)*2; i>=PREFIX; i -= 2) {
+    
+  }
+
+  int i,ends=0;
+  for (i=0; i<PREFIX; ++i) {
+    if (i < envLen) {
+      
+    } else {
+      return -1;
+    }
+  }
+  
+  state = 0;
+  while (i <= envLen) {
+    if (i < envLen) {
+      env[i] = deckDecryptCard(deck,env[i]);
+    }
+    if (i == envLen || env[i] != CARD-1) {
+      if (ends >= PREFIX/2) {
+	return (i-PREFIX)/2-ends;
+      }
+      ends=0;
+    } else {
+      ++ends;
+    }
+    ++i;
+  }
+  return -(i+1);
+
+  
+  
+    int status = deckEncryptEnvelopeWrite(randCard,&parms);
+    if (status < 0) { 
+      return status;
+    }
+  }
+
+  int encLen = cardEncodeWrite(str,strLen,deckEncryptEnvelopEncodeWrite,&parms);
+  if (encLen < 0) {
+    return encLen;
+  }
+
+  int pad = 0;
+  while (pad < PREFIX/2 || (encLen+pad) % PREFIX != 0) {
+    int status = deckEncryptEnvelopEncodeWrite(CARDS-1,&parms);
+    if (status < 0) { 
+      return status;
+    }
+    ++pad;
+  }
+  return PREFIX + 2*(encLen+pad);
 
 }
+

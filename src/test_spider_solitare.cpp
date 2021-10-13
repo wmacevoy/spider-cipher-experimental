@@ -1,4 +1,4 @@
-
+#include <math.h>
 #include <wchar.h>
 #include "gtest/gtest.h"
 #include "spider_solitare.h"
@@ -232,28 +232,15 @@ TEST(Spider,Encode) {
     Card *cards=(Card*)malloc(sizeof(Card)*cardsLen);
     cardEncodeToArray(str,strLen,cards,cardsLen);
 
-    int decodeLen=cardDecodeLen(cards,cardsLen);
+    int decodeLen=cardDecodeLen(cards,1,cardsLen);
     wchar_t *decode = (wchar_t*)malloc(sizeof(wchar_t)*(decodeLen+1));
-    cardDecodeToArray(cards,cardsLen,decode,decodeLen);
+    cardDecodeToArray(cards,1,cardsLen,decode,decodeLen);
     decode[decodeLen]=0;
 
-    const char *hex="0123456789ABCDEF";
-
-    for (int i=0,j=0; i<strLen; ++i) {
-      if (str[i] == decode[j]) { ++j; continue; }
-      int codeLen = -1;
-      ASSERT_EQ(decode[j],'\\');
-      if (decode[j+1] == 'x') { codeLen = 2; }
-      if (decode[j+1] == 'u') { codeLen = 4; }
-      if (decode[j+1] == 'U') { codeLen = 8; }
-      ASSERT_TRUE(codeLen > 0);
-      int code = 0;
-      for (int k=0; k<codeLen; ++k) {
-	code = code*16 + (strchr(hex,decode[j+2+k])-hex);
-      }
-      ASSERT_EQ(code,str[i]);
-      j += 2+codeLen;
+    for (int j=0; j<=decodeLen; ++j) {
+      ASSERT_EQ(str[j],decode[j]) << " i=" << i << " j=" << j;
     }
+
     setlocale(LC_CTYPE,"UTF-8");
     fputws(str,stdout);
     printf(" => ");
@@ -278,6 +265,62 @@ int testRand(void *voidParms) {
   }
 }
 
+TEST(Spider,Rand) {
+  int n = 100000000;
+  int counts1[CARDS];
+  int counts2[CARDS][CARDS];
+  void *randParms = RandOpen();
+
+  for (int i=0; i<CARDS; ++i) {
+    counts1[i]=0;
+    for (int j=0; j<CARDS; ++j) {
+      counts2[i][j]=0;
+    }
+  }
+
+  int c1=RandCard(randParms);
+  for (int i=0; i<n; ++i) {
+    int c0=RandCard(randParms);
+    ++counts1[c0];
+    ++counts2[c0][c1];
+    c1=c0;
+  }
+
+  double p1 = 1.0/CARDS;
+  double q1 = 1-p1;
+  double mu1 = n*p1;
+  double inv_sigma1 = 1/sqrt(mu1);
+  double z1=0.0;
+
+  for (int i=0; i<CARDS; ++i) {
+    double zi=inv_sigma1*(counts1[i]-mu1);
+    ASSERT_LE(fabs(zi),6.0) << " i=" << i << std::endl;
+    z1 += pow(zi,2);
+  }
+
+  z1 = sqrt(2.0)*(sqrt(z1)-sqrt(CARDS-1.5));
+
+  double p2 = pow(1.0/CARDS,2);
+  double q2 = 1-p2;
+  double mu2 = n*p2;
+  double inv_sigma2 = 1/sqrt(mu2);
+  double z2=0.0;
+
+  for (int i=0; i<CARDS; ++i) {
+    for (int j=0; j<CARDS; ++j) {
+      double zij=inv_sigma2*(counts2[i][j]-mu2);
+      ASSERT_LE(fabs(zij),6.0) << " i=" << i << " j=" << j << std::endl;
+      z2 += pow(zij,2);
+    }
+  }
+
+  z2 = sqrt(2.0)*(sqrt(z2)-sqrt(pow(CARDS,2)-1.5));
+
+  ASSERT_LE(fabs(z1),6.0);
+  ASSERT_LE(fabs(z2),6.0);  
+}
+
+
 TEST(Spider,HelloWorld) {
   const wchar_t *str=L"I❤️Spider - Solitaire is #1!";
   TestRandParms randParms;
@@ -297,12 +340,13 @@ TEST(Spider,HelloWorld) {
 
   for (int i=0; i<cardLen; ++i) {
     printf(" %02d",cards[i]);
-    if (i % 9 == 0) printf("\n");
+    if (i % 10 == 9) printf("\n");
   }
 }
 
 int main(int argc, char** argv) {
-  ::testing::InitGoogleTest(&argc, argv);
+  setlocale(LC_ALL, "");
+ ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
 

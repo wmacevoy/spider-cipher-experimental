@@ -105,6 +105,10 @@ extern "C" {
 			       CardRead *rng,void *rngParms,
 				 Card *cards, int capacity);
 
+  void *RandOpen();
+  int RandCard(void *parms);
+  void RandClose(void *parms);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
