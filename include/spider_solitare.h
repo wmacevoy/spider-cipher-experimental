@@ -29,11 +29,17 @@
   /* unicode club, diamond, heart, spade from 0,1,2,3 */
   wchar_t cardSuiteFromNo(int cardSuiteNo);
 
+  /* returns -1 if face or suite value are not in range */
+  int cardFromFaceSuiteNo(int cardFaceNo, int cardSuiteNo);
+
   /* modular 40 add */
   Card cardAdd(Card x, Card y);
 
   /* modular 40 subtract */
   Card cardSubtract(Card x, Card y);
+
+  /* set deck to values 0 .. 39 */
+  void deckInit(Deck deck);
 
   /* fixed time deck cut at location, so output[0]=input[cutLoc]  */
   void deckCut(Deck input, int cutLoc,Deck output);

@@ -1,7 +1,116 @@
 #include <math.h>
 #include <wchar.h>
+#include <iostream>
+#include <vector>
+#include <string>
 #include "gtest/gtest.h"
 #include "spider_solitare.h"
+
+const std::vector<std::wstring> TEST_STRINGS =
+  {
+   L"",
+   L"x",
+   L"xy",
+   L"X",
+   L"XY",
+   L"1",
+   L"12",
+   L"♣",
+   L"♣♠",
+   L"xX1♣xyXY12♣♠",
+   L"Spider Solitare",
+   L"int main(int argc, char** argv) {\n" 
+   L"  ::testing::InitGoogleTest(&argc, argv);\n" 
+   L"  return RUN_ALL_TESTS();\n" 
+   L"}\n",
+   L"Q(0)A(1)23456789♣+0a0AQ♣0/0b1BA♣1/-39c2C2♣2/-38d3D3♣3/-37e4E4♣4/-36f5F5♣5/-35g6G6♣6/-34h7H7♣7/-33i8I8♣8/-32j9J9♣9/-31♦+10kAKQ♦10/-30lBLA♦11/-29mCM2♦12/-28nDN3♦13/-27oEO4♦14/-26pFP5♦15/-25q@Q6♦16/-24r=R7♦17/-23s\\S8♦18/-22t~T9♦19/-21♥+20u#UQ♥20/-20v$VA♥21/-19w%W2♥22/-18x^X3♥23/-17y&Y4♥24/-16z|Z5♥25/-15<-{6♥26/-14>+}7♥27/-13(/[8♥28/-12)*]9♥29/-11♠+30☐↩_Q♠30/-10,;:A♠31/-9.?!2♠32/-8\"\'`3♠33/-7👍😄❤️4♠34/-6👎😢💔5♠35/-5↓6♠36/-4↑7♠37/-3⇊8♠38/-2⇈9♠39/-1",
+};
+
+#define DECK_EQ(a,b) { for (int i=0; i<CARDS; ++i) { ASSERT_EQ(a[i],b[i]) << " index " << i; } }
+
+
+struct CardNotRandIO {
+  CardIO base;
+  int state;
+};
+
+int CardNotRandIORead(CardIO *me) {
+  CardNotRandIO *my=(CardNotRandIO *)me;
+  int ans=0;
+  if (my->state < PREFIX) {
+    ans = my->state + 1; // 1--10 for prefix */
+  } else {
+    ans = CARDS-1-((my->state-PREFIX) % CARDS);
+  }
+  ++my->state;
+  return ans;
+}
+
+void CardNotRandIOClose(CardIO *me) {}
+
+void CardNotRandIOInit(CardNotRandIO *me) {
+  me->base.read = &CardNotRandIORead;
+  me->base.write = NULL;
+  me->base.peek = NULL;
+  me->base.close = &CardNotRandIOClose;
+  me->state = 0;
+}
+
+TEST(Spider,Rand) {
+  int n = 10*1000*1000;
+  int counts1[CARDS];
+  int counts2[CARDS][CARDS];
+  CardRandIO rcg;
+  CardRandIOInit(&rcg);
+
+  for (int i=0; i<CARDS; ++i) {
+    counts1[i]=0;
+    for (int j=0; j<CARDS; ++j) {
+      counts2[i][j]=0;
+    }
+  }
+
+  int c1=rcg.base.read((CardIO*)&rcg);
+  for (int i=0; i<n; ++i) {
+    int c0=rcg.base.read((CardIO*)&rcg);
+    ++counts1[c0];
+    ++counts2[c0][c1];
+    c1=c0;
+  }
+
+  double p1 = 1.0/CARDS;
+  double q1 = 1-p1;
+  double mu1 = n*p1;
+  double inv_sigma1 = 1/sqrt(mu1);
+  double z1=0.0;
+
+  for (int i=0; i<CARDS; ++i) {
+    double zi=inv_sigma1*(counts1[i]-mu1);
+    ASSERT_LE(fabs(zi),6.0) << " i=" << i << std::endl;
+    z1 += pow(zi,2);
+  }
+
+  z1 = sqrt(2.0)*(sqrt(z1)-sqrt(CARDS-1.5));
+
+  double p2 = pow(1.0/CARDS,2);
+  double q2 = 1-p2;
+  double mu2 = n*p2;
+  double inv_sigma2 = 1/sqrt(mu2);
+  double z2=0.0;
+
+  for (int i=0; i<CARDS; ++i) {
+    for (int j=0; j<CARDS; ++j) {
+      double zij=inv_sigma2*(counts2[i][j]-mu2);
+      ASSERT_LE(fabs(zij),6.0) << " i=" << i << " j=" << j << std::endl;
+      z2 += pow(zij,2);
+    }
+  }
+
+  z2 = sqrt(2.0)*(sqrt(z2)-sqrt(pow(CARDS,2)-1.5));
+
+  ASSERT_LE(fabs(z1),6.0);
+  ASSERT_LE(fabs(z2),6.0);  
+}
 
 void testBackFrontShuffle(const Deck &in, Deck &out)
 {
@@ -66,6 +175,38 @@ TEST(Spider,FaceAndSuiteNo) {
   }
 }
 
+TEST(Spider,FaceFromNo) {
+  ASSERT_EQ(cardFaceFromNo(0),L'Q');
+  ASSERT_EQ(cardFaceFromNo(1),L'A');
+  ASSERT_EQ(cardFaceFromNo(2),L'2');
+  ASSERT_EQ(cardFaceFromNo(3),L'3');
+  ASSERT_EQ(cardFaceFromNo(4),L'4');
+  ASSERT_EQ(cardFaceFromNo(5),L'5');
+  ASSERT_EQ(cardFaceFromNo(6),L'6');
+  ASSERT_EQ(cardFaceFromNo(7),L'7');
+  ASSERT_EQ(cardFaceFromNo(8),L'8');
+  ASSERT_EQ(cardFaceFromNo(9),L'9');
+}
+
+TEST(Spider,SuiteFromNo) {
+  ASSERT_EQ(cardSuiteFromNo(0),0x2663); // Unicode club
+  ASSERT_EQ(cardSuiteFromNo(1),0x2665); // Unicdoe diamond
+  ASSERT_EQ(cardSuiteFromNo(2),0x2667); // Unicode heart
+  ASSERT_EQ(cardSuiteFromNo(3),0x2669); // Unicode spade
+}
+
+TEST(Spider,CardFromFaceSuiteNo) {
+  for (int suiteNo : {-1,0, 1, 2, 3,4}) {
+    for (int faceNo : {-1,0,1,2,3,4,5,6,7,8,9,10}) {
+      int card = 10*suiteNo+faceNo;
+      if (suiteNo < 0 || suiteNo >= 4) { card = -1; }
+      if (faceNo < 0 || faceNo >= 10) { card = -1; }      
+      ASSERT_EQ(cardFromFaceSuiteNo(faceNo,suiteNo),card);
+    }
+  }
+}
+
+
 TEST(Spider,Add) {
   for (int x = 0; x <= CARDS; ++x) {
     for (int y = 0; y <= CARDS; ++y) {
@@ -90,25 +231,31 @@ TEST(Spider,Subtract) {
   }
 }
 
+TEST(Spider,Init) {
+  Deck deck;
+  deckInit(deck);
+  for (int i=0; i<CARDS; ++i) {
+    ASSERT_EQ(deck[i],i);
+  }
+}
+
 TEST(Spider,Cut) {
   for (int cutLoc = 0; cutLoc < CARDS; ++cutLoc) {
     Deck input,output,expect;
-    for (int i=0; i<CARDS; ++i) {
-      input[i]=i;
-      expect[i]=cardAdd(i,cutLoc);
-    }
+    deckInit(input);
+    deckInit(output);
+    deckInit(expect);
+    testCut(input,cutLoc,expect);
     deckCut(input,cutLoc,output);
-    for (int i=0; i<CARDS; ++i) {    
-      ASSERT_EQ(output[i],expect[i]);
-    }
+    DECK_EQ(output,expect);
   }
 }
 
 TEST(Spider,BackFrontShuffle) {
   Deck input,output,expect;
-  for (int i=0; i<CARDS; ++i) {
-    input[i]=i;
-  }
+  deckInit(input);
+  deckInit(output);
+  deckInit(expect);
   testBackFrontShuffle(input,expect);
   deckBackFrontShuffle(input,output);
 
@@ -119,9 +266,8 @@ TEST(Spider,BackFrontShuffle) {
 
 TEST(Spider,FindCard) {
   Deck deck,shuffled;
-  for (int i=0; i<CARDS; ++i) {
-    deck[i]=i;
-  }
+  deckInit(deck);
+  deckInit(shuffled);
   testShuffle(deck,shuffled);
   for (int i=0; i<CARDS; ++i) {
     ASSERT_EQ(testFindCard(deck,i),deckFindCard(deck,i));
@@ -132,10 +278,10 @@ TEST(Spider,FindCard) {
 TEST(Spider,PseudoShuffle) {
   for (int cutLoc = 0; cutLoc < CARDS; ++cutLoc) {
     Deck input,output,tmp,expect;
-    for (int i=0; i<CARDS; ++i) {
-      input[i]=i;
-      output[i]=i;
-    }
+    deckInit(input);
+    deckInit(output);
+    deckInit(tmp);
+    deckInit(expect);
     testCut(input,cutLoc,tmp);
     testBackFrontShuffle(tmp,expect);
     deckPseudoShuffle(output,cutLoc);
@@ -149,10 +295,9 @@ TEST(Spider,PseudoShuffle) {
 TEST(Spider,Pads) {
   const char *testString = "spidersolitare";
   Deck testDeck,tmp,deck;
-  for (int i=0; i<CARDS; ++i) {
-    deck[i]=i;
-    testDeck[i]=i;
-  }
+  deckInit(testDeck);
+  deckInit(tmp);
+  deckInit(deck);
   
   for (int i=0; testString[i] != 0; ++i) {
     for (int j=0; j<CARDS; ++j) {
@@ -173,10 +318,9 @@ TEST(Spider,Pads) {
 TEST(Spider,Ciphers) {
   const char *testString = "spidersolitare";
   Deck testDeck,tmp,deck;
-  for (int i=0; i<CARDS; ++i) {
-    deck[i]=i;
-    testDeck[i]=i;    
-  }
+  deckInit(testDeck);
+  deckInit(tmp);
+  deckInit(deck);
 
   for (int k=0; k<10; ++k) {
     for (int i=0; testString[i] != 0; ++i) {
@@ -214,159 +358,59 @@ TEST(Spider,Ciphers) {
   }
 }
 
+
 TEST(Spider,Encode) {
-  const wchar_t *str0 =
-    L"int main(int argc, char** argv) {\n" 
-    L"  ::testing::InitGoogleTest(&argc, argv);\n" 
-    L"  return RUN_ALL_TESTS();\n" 
-    L"}\n";
-
-  const wchar_t *str1 =
-    L"Q(0)A(1)23456789♣+0a0AQ♣0/0b1BA♣1/-39c2C2♣2/-38d3D3♣3/-37e4E4♣4/-36f5F5♣5/-35g6G6♣6/-34h7H7♣7/-33i8I8♣8/-32j9J9♣9/-31♦+10kAKQ♦10/-30lBLA♦11/-29mCM2♦12/-28nDN3♦13/-27oEO4♦14/-26pFP5♦15/-25q@Q6♦16/-24r=R7♦17/-23s\\S8♦18/-22t~T9♦19/-21♥+20u#UQ♥20/-20v$VA♥21/-19w%W2♥22/-18x^X3♥23/-17y&Y4♥24/-16z|Z5♥25/-15<-{6♥26/-14>+}7♥27/-13(/[8♥28/-12)*]9♥29/-11♠+30☐↩_Q♠30/-10,;:A♠31/-9.?!2♠32/-8\"\'`3♠33/-7👍😄❤️4♠34/-6👎😢💔5♠35/-5↓6♠36/-4↑7♠37/-3⇊8♠38/-2⇈9♠39/-1";
-
-  for (int i=0; i<2; ++i) {
-    const wchar_t *str = (i == 0) ? str0 : str1;
-    int strLen = 0; while (str[strLen] != 0) ++strLen;
+  for (int i=0; i<TEST_STRINGS.size(); ++i) {
+    const wchar_t *str=TEST_STRINGS[i].c_str();
+    int strLen = TEST_STRINGS[i].length();
 
     int cardsLen=encodeLen((wchar_t*)str,strLen);
     Card *cards=(Card*)malloc(sizeof(Card)*cardsLen);
     encodeArray((wchar_t*)str,strLen,cards,cardsLen);
 
     int decLen=decodeLen(cards,cardsLen);
+    ASSERT_GE(decLen,0) << " i=" << i;
+
     wchar_t *decode = (wchar_t*)malloc(sizeof(wchar_t)*(decLen+1));
     decodeArray(cards,cardsLen,decode,decLen);
     decode[decLen]=0;
 
-    for (int j=0; j<=decLen; ++j) {
-      ASSERT_EQ(str[j],decode[j]) << " i=" << i << " j=" << j;
+    int maxLen = strLen > decLen ? strLen : decLen;
+    for (int j=0; j<maxLen; ++j) {
+      ASSERT_EQ(j < strLen ? str[j] : -1,j < decLen ? decode[j] : -1) << " i=" << i << " j=" << j;
     }
 
-    setlocale(LC_CTYPE,"UTF-8");
-    fputws(str,stdout);
-    printf(" => ");
-    fputws(decode,stdout);  
+    ASSERT_EQ(strLen,decLen) << " i=" << i;
   }
 }
 
-struct CardNotRandIO {
-  CardIO base;
-  int state;
-};
+TEST(Spider,Envelope) {
+  for (int i=0; i<TEST_STRINGS.size(); ++i) {
+    const wchar_t *str=TEST_STRINGS[i].c_str();
+    int strLen = TEST_STRINGS[i].length();
 
-int CardNotRandIORead(CardIO *me) {
-  CardNotRandIO *my=(CardNotRandIO *)me;
-  int ans=0;
-  if (my->state < PREFIX) {
-    ans = my->state + 1; // 1--10 for prefix */
-  } else {
-    ans = CARDS-1-((my->state-PREFIX) % CARDS);
-  }
-  ++my->state;
-  return ans;
-}
+    CardNotRandIO nrcg;
+    CardNotRandIOInit(&nrcg);
+    Deck deck;
+    deckInit(deck);
+    
+    int maxCardLen = strLen*6+PREFIX;
+    std::vector<Card> cards(maxCardLen,0);
 
-void CardNotRandIOClose(CardIO *me) {}
+    int cardLen=encryptEnvelopeArray(deck,(wchar_t*)str,strLen,
+				     (CardIO*)&nrcg,
+				     &cards[0],maxCardLen);
+    ASSERT_TRUE(cardLen > 0) << " test str # " << i;
 
-void CardNotRandIOInit(CardNotRandIO *me) {
-  me->base.read = &CardNotRandIORead;
-  me->base.write = NULL;
-  me->base.peek = NULL;
-  me->base.close = &CardNotRandIOClose;
-  me->state = 0;
-}
+    int decStrCap=strLen*6+PREFIX;
+    std::vector<wchar_t> decStr(decStrCap,0);
+    deckInit(deck);
+    int decStrLen=decryptEnvelopeArray(deck,&cards[0],cardLen,&decStr[0],decStrCap);
 
-TEST(Spider,Rand) {
-  int n = 100000000;
-  int counts1[CARDS];
-  int counts2[CARDS][CARDS];
-  CardRandIO rcg;
-  CardRandIOInit(&rcg);
-
-  for (int i=0; i<CARDS; ++i) {
-    counts1[i]=0;
-    for (int j=0; j<CARDS; ++j) {
-      counts2[i][j]=0;
+    ASSERT_EQ(decStrLen,strLen);
+    for (int i=0; i<strLen; ++i) {
+      ASSERT_EQ(decStr[i],str[i]);
     }
-  }
-
-  int c1=rcg.base.read((CardIO*)&rcg);
-  for (int i=0; i<n; ++i) {
-    int c0=rcg.base.read((CardIO*)&rcg);
-    ++counts1[c0];
-    ++counts2[c0][c1];
-    c1=c0;
-  }
-
-  double p1 = 1.0/CARDS;
-  double q1 = 1-p1;
-  double mu1 = n*p1;
-  double inv_sigma1 = 1/sqrt(mu1);
-  double z1=0.0;
-
-  for (int i=0; i<CARDS; ++i) {
-    double zi=inv_sigma1*(counts1[i]-mu1);
-    ASSERT_LE(fabs(zi),6.0) << " i=" << i << std::endl;
-    z1 += pow(zi,2);
-  }
-
-  z1 = sqrt(2.0)*(sqrt(z1)-sqrt(CARDS-1.5));
-
-  double p2 = pow(1.0/CARDS,2);
-  double q2 = 1-p2;
-  double mu2 = n*p2;
-  double inv_sigma2 = 1/sqrt(mu2);
-  double z2=0.0;
-
-  for (int i=0; i<CARDS; ++i) {
-    for (int j=0; j<CARDS; ++j) {
-      double zij=inv_sigma2*(counts2[i][j]-mu2);
-      ASSERT_LE(fabs(zij),6.0) << " i=" << i << " j=" << j << std::endl;
-      z2 += pow(zij,2);
-    }
-  }
-
-  z2 = sqrt(2.0)*(sqrt(z2)-sqrt(pow(CARDS,2)-1.5));
-
-  ASSERT_LE(fabs(z1),6.0);
-  ASSERT_LE(fabs(z2),6.0);  
-}
-
-
-void TestWrite(void *data,int arg) {
-  ASSERT_EQ(arg,1);
-}
-
-TEST(Sanity,FunctionPtr) {
-  int one = 1;
-  TestWrite(NULL,one);
-  void
-    (*write)(void *data,int arg)=&TestWrite;
-  write(NULL,one);
-}
-
-
-TEST(Spider,HelloWorld) {
-  const wchar_t *str=L"I❤️Spider - Solitaire is #1!";
-  CardNotRandIO nrcg;
-  CardNotRandIOInit(&nrcg);
-
-  int strLen = 0;
-  while (str[strLen] != 0) ++strLen;
-  Deck deck;
-  int maxCardLen = 1000;
-  Card cards[1000];
-
-  for (int i=0; i<CARDS; ++i) {
-    deck[i]=i;
-  }
-  int cardLen=encryptEnvelopeArray(deck,(wchar_t*)str,strLen,
-					 (CardIO*)&nrcg,
-					 cards,maxCardLen);
-  ASSERT_TRUE(cardLen > 0);
-
-  for (int i=0; i<cardLen; ++i) {
-    printf(" %02d",cards[i]);
-    if (i % 10 == 9) printf("\n");
   }
 }
 
