@@ -3,7 +3,7 @@
 #include "gtest/gtest.h"
 #include "spider_solitare.h"
 
-void testBackFrontShuffle(Deck in, Deck out)
+void testBackFrontShuffle(const Deck &in, Deck &out)
 {
   int n=0;
   for (int i=0; i<CARDS; ++i) {
@@ -16,7 +16,7 @@ void testBackFrontShuffle(Deck in, Deck out)
   }
 }
 
-void testShuffle(Deck in, Deck out) {
+void testShuffle(const Deck &in, Deck &out) {
   for (int i=0; i<CARDS; ++i) {
     out[i]=in[i];
   }
@@ -30,13 +30,13 @@ void testShuffle(Deck in, Deck out) {
   }
 }
 
-void testCut(Deck in, int cutPos, Deck out) {
+void testCut(const Deck &in, int cutPos, Deck &out) {
   for (int i=0; i<CARDS; ++i) {
     out[i]=in[(i+cutPos) % CARDS];
   }
 }
 
-int testFindCard(Deck deck, Card card) {
+int testFindCard(const Deck &deck, Card card) {
   for (int i=0; i<CARDS; ++i) {
     if (deck[i] == card) {
       return i;
@@ -45,11 +45,11 @@ int testFindCard(Deck deck, Card card) {
   return -1;
 }
 
-Card testCutPad(Deck deck) {
+Card testCutPad(const Deck &deck) {
   return deck[CUT_ZTH];
 }
 
-Card testCipherPad(Deck deck) {
+Card testCipherPad(const Deck &deck) {
   int markCard = (deck[MARK_ZTH]+MARK_ADD) % CARDS;
   int markLoc = testFindCard(deck, markCard);
   return deck[(markLoc + 1) % CARDS];
@@ -228,16 +228,16 @@ TEST(Spider,Encode) {
     const wchar_t *str = (i == 0) ? str0 : str1;
     int strLen = 0; while (str[strLen] != 0) ++strLen;
 
-    int cardsLen=cardEncodeLen(str,strLen);
+    int cardsLen=encodeLen((wchar_t*)str,strLen);
     Card *cards=(Card*)malloc(sizeof(Card)*cardsLen);
-    cardEncodeToArray(str,strLen,cards,cardsLen);
+    encodeArray((wchar_t*)str,strLen,cards,cardsLen);
 
-    int decodeLen=cardDecodeLen(cards,1,cardsLen);
-    wchar_t *decode = (wchar_t*)malloc(sizeof(wchar_t)*(decodeLen+1));
-    cardDecodeToArray(cards,1,cardsLen,decode,decodeLen);
-    decode[decodeLen]=0;
+    int decLen=decodeLen(cards,cardsLen);
+    wchar_t *decode = (wchar_t*)malloc(sizeof(wchar_t)*(decLen+1));
+    decodeArray(cards,cardsLen,decode,decLen);
+    decode[decLen]=0;
 
-    for (int j=0; j<=decodeLen; ++j) {
+    for (int j=0; j<=decLen; ++j) {
       ASSERT_EQ(str[j],decode[j]) << " i=" << i << " j=" << j;
     }
 
@@ -246,30 +246,41 @@ TEST(Spider,Encode) {
     printf(" => ");
     fputws(decode,stdout);  
   }
-
 }
 
-struct TestRandParms {
+struct CardNotRandIO {
+  CardIO base;
   int state;
 };
 
-int testRand(void *voidParms) {
-  TestRandParms *parms = (TestRandParms *) voidParms;
-  ++parms->state;
-    
-  if (parms->state <= PREFIX) {
-    return parms->state % CARDS;
+int CardNotRandIORead(CardIO *me) {
+  CardNotRandIO *my=(CardNotRandIO *)me;
+  int ans=0;
+  if (my->state < PREFIX) {
+    ans = my->state + 1; // 1--10 for prefix */
   } else {
-    int i = (parms->state-1-PREFIX) % CARDS;
-    return CARDS-1-i;
+    ans = CARDS-1-((my->state-PREFIX) % CARDS);
   }
+  ++my->state;
+  return ans;
+}
+
+void CardNotRandIOClose(CardIO *me) {}
+
+void CardNotRandIOInit(CardNotRandIO *me) {
+  me->base.read = &CardNotRandIORead;
+  me->base.write = NULL;
+  me->base.peek = NULL;
+  me->base.close = &CardNotRandIOClose;
+  me->state = 0;
 }
 
 TEST(Spider,Rand) {
   int n = 100000000;
   int counts1[CARDS];
   int counts2[CARDS][CARDS];
-  void *randParms = RandOpen();
+  CardRandIO rcg;
+  CardRandIOInit(&rcg);
 
   for (int i=0; i<CARDS; ++i) {
     counts1[i]=0;
@@ -278,9 +289,9 @@ TEST(Spider,Rand) {
     }
   }
 
-  int c1=RandCard(randParms);
+  int c1=rcg.base.read((CardIO*)&rcg);
   for (int i=0; i<n; ++i) {
-    int c0=RandCard(randParms);
+    int c0=rcg.base.read((CardIO*)&rcg);
     ++counts1[c0];
     ++counts2[c0][c1];
     c1=c0;
@@ -321,10 +332,24 @@ TEST(Spider,Rand) {
 }
 
 
+void TestWrite(void *data,int arg) {
+  ASSERT_EQ(arg,1);
+}
+
+TEST(Sanity,FunctionPtr) {
+  int one = 1;
+  TestWrite(NULL,one);
+  void
+    (*write)(void *data,int arg)=&TestWrite;
+  write(NULL,one);
+}
+
+
 TEST(Spider,HelloWorld) {
   const wchar_t *str=L"I❤️Spider - Solitaire is #1!";
-  TestRandParms randParms;
-  randParms.state = 0;
+  CardNotRandIO nrcg;
+  CardNotRandIOInit(&nrcg);
+
   int strLen = 0;
   while (str[strLen] != 0) ++strLen;
   Deck deck;
@@ -334,8 +359,9 @@ TEST(Spider,HelloWorld) {
   for (int i=0; i<CARDS; ++i) {
     deck[i]=i;
   }
-  int cardLen=deckEncryptEnvelopeToArray(deck,str,strLen,
-					 testRand,&randParms,cards,maxCardLen);
+  int cardLen=encryptEnvelopeArray(deck,(wchar_t*)str,strLen,
+					 (CardIO*)&nrcg,
+					 cards,maxCardLen);
   ASSERT_TRUE(cardLen > 0);
 
   for (int i=0; i<cardLen; ++i) {

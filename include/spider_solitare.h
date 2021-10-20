@@ -1,24 +1,20 @@
 
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-  // number of cards in deck
+  /*  number of cards in deck */
 #define CARDS  40
 
 #define PREFIX    10
 
-  // cut card = deck[cut_zth]
+  /* cut card = deck[CUT_ZTH] */
 #define CUT_ZTH 0
-  // 0-based index of cipher mark card
+  /*  0-based index of cipher mark card */
 #define MARK_ZTH 2
-  // mark card = deck[mark_zth] + mark_add mod 40
+  /* mark card = (deck[MARK_ZTH] + MARK_ADD) % CARDS */
 #define MARK_ADD 39
 
   /* 0..39 values only */
-  typedef unsigned char Card;
+  typedef signed char Card;
   typedef Card Deck[CARDS];
 
   /* 0,1,2,3 ... 8,9 for Q,A,23 ... 8,9 of any suite */
@@ -26,9 +22,6 @@ extern "C" {
 
   /* 0,1,2,3 for club, diamond, heart, spade of any face */
   int cardSuiteNo(Card card);
-
-  /* 'Q','A','1','2','3', ... '8','9' for 0,1,2,3,...,8,9 */
-  wchar_t cardFaceFromNo(int cardFaceNo);
 
   /* 'Q','A','1','2','3', ... '8','9' for 0,1,2,3,...,8,9 */
   wchar_t cardFaceFromNo(int cardFaceNo);
@@ -72,43 +65,76 @@ extern "C" {
   /* return decrypted card and advance deck */
   Card deckDecryptCard(Deck deck, Card plainCard);
 
-  typedef int CardWrite(Card card, void *parms);
-
-  typedef int WideCharWrite(wchar_t code, void *parms);
-
-  typedef int CardRead(void *parms);
-
-  typedef int WideCharRead(void *parms);  
-
+  struct CardIO {
+    int (*read)(CardIO *me);
+    int (*write)(CardIO *me, int card);
+    int (*peek)(CardIO *me, int offset);
+    void (*close)(CardIO *me);
+  };
   
-  /* 
-     encode wide string, returns card count and (if not NULL) calls 
-     write or each card.  write should return a 0, otherwise the
-     encode stops and returns this value 
-  */
-  int cardEncodeWrite(const wchar_t *str, int strLen,
-		      CardWrite *write, void *writeParms);
-  int cardEncodeLen(const wchar_t *str, int strLen);
-  int cardEncodeToArray(const wchar_t *str, int strLen,
-			Card *cards, int capacity);
+  struct CardArrayIO {
+    CardIO base;
+    Card *cards;
+    int position;
+    int step;
+    int size;
+    int capacity;
+    int reads;
+
+    int writes;
+  };
   
-  int cardDecodeWrite(Card *cards,int cardsLen,
-		      WideCharWrite *write, void *writeParms);
-  int cardDecodeLen(Card *cards,int cardsLen);
-  int cardDecodeToArray(Card *cards,int cardsLen,
-			wchar_t *str, int capacity);
+  void CardArrayIOInit(CardArrayIO *me, Card *cards, int step, int size, int capacity);
 
-  int deckEncryptEnvelopeWrite(Deck deck, const wchar_t *str, int strLen,
-			       CardRead *rng,void *rngParms,
-			       CardWrite *write, void *writeParms);
-  int deckEncryptEnvelopeToArray(Deck deck, const wchar_t *str, int strLen,
-			       CardRead *rng,void *rngParms,
-				 Card *cards, int capacity);
+  struct CardRandIO {
+    CardIO base;
+    FILE *urand;
+  };
 
-  void *RandOpen();
-  int RandCard(void *parms);
-  void RandClose(void *parms);
+  void CardRandIOInit(CardRandIO *me);
 
-#ifdef __cplusplus
-} // extern "C"
-#endif
+  struct CardTranslateIO {
+    CardIO base;
+    CardIO *io;
+    Card *deck;
+    int mode;
+  };
+
+  void CardTranslateIOInit(CardTranslateIO *me, CardIO *io, Deck deck, int mode);
+  struct WideCharIO {
+    int (*read)(WideCharIO *me);
+    int (*write)(WideCharIO *me, int ch);
+    int (*peek)(WideCharIO *me, int offset);
+    void (*close)(WideCharIO *me);
+  };
+
+  struct WideCharArrayIO {
+    WideCharIO base;
+    wchar_t *chars;
+    int position;
+    int step;
+    int size;
+    int capacity;
+    int reads;
+    int writes;
+  };
+  
+  void WideCharArrayIOInit(WideCharArrayIO *me, wchar_t *chars, int step, int size, int capacity);
+  
+  int encodeIO(WideCharIO *in, CardIO *out);
+  int encodeArray(wchar_t *str, int strLen,
+		  Card *cards, int cardCapacity);
+  int encodeLen(wchar_t *str, int strLen);
+  
+  int decodeIO(CardIO *in, WideCharIO *out);
+  int decodeArray(Card *cards, int cardsLen,
+		  wchar_t *str, int capacity);
+  int decodeLen(Card *cards, int cardsLen);
+  int envelopeLen(int encodeLen);
+
+  int encryptEnvelopeIO(Deck deck, WideCharIO *in, CardIO *rng, CardIO *out);
+  int encryptEnvelopeArray(Deck deck, wchar_t *str, int strLen, CardIO *rng, Card *cards, int capacity);
+
+  int decryptEnvelopeIO(Deck deck, CardIO *in, CardIO *deniableOut, WideCharIO *out);
+  int decryptEnvelopeArray(Deck deck, Card *cards, int cardLen, wchar_t *str, int strCapacity);  
+  

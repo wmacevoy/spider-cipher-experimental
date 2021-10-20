@@ -27,7 +27,9 @@
 #       make mains
 
 # c++ compile flags
-CXXFLAGS=-pthread -Iinclude -g -O2 -std=c++17 -fPIC
+#CXXFLAGS=-pthread -Iinclude -g -O2 -std=c++17 -fPIC
+
+CXXFLAGS=-pthread -Iinclude -g -std=c++17 -fPIC
 
 include Makefile.googletest
 
