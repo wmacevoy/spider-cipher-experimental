@@ -258,10 +258,7 @@ TEST(Spider,BackFrontShuffle) {
   deckInit(expect);
   testBackFrontShuffle(input,expect);
   deckBackFrontShuffle(input,output);
-
-  for (int i=0; i<CARDS; ++i) {    
-    ASSERT_EQ(output[i],expect[i]);
-  }
+  DECK_EQ(output,expect);
 }
 
 TEST(Spider,FindCard) {
@@ -285,10 +282,8 @@ TEST(Spider,PseudoShuffle) {
     testCut(input,cutLoc,tmp);
     testBackFrontShuffle(tmp,expect);
     deckPseudoShuffle(output,cutLoc);
-    
-    for (int i=0; i<CARDS; ++i) {    
-      ASSERT_EQ(output[i],expect[i]);
-    }
+
+    DECK_EQ(output,expect);
   }
 }
 
@@ -300,9 +295,7 @@ TEST(Spider,Pads) {
   deckInit(deck);
   
   for (int i=0; testString[i] != 0; ++i) {
-    for (int j=0; j<CARDS; ++j) {
-      ASSERT_EQ(testDeck[j],deck[j]);
-    }
+    DECK_EQ(testDeck,deck);
     ASSERT_EQ(testCutPad(testDeck),deckCutPad(deck));
     ASSERT_EQ(testCipherPad(testDeck),deckCipherPad(deck));
     Card plain = testString[i]-'a';
@@ -324,9 +317,7 @@ TEST(Spider,Ciphers) {
 
   for (int k=0; k<10; ++k) {
     for (int i=0; testString[i] != 0; ++i) {
-      for (int j=0; j<CARDS; ++j) {
-	ASSERT_EQ(testDeck[j],deck[j]);
-      }
+      DECK_EQ(testDeck,deck);
       for (int j=0; j<CARDS; ++j) {
 	tmp[j]=deck[j];
       }
@@ -351,15 +342,14 @@ TEST(Spider,Ciphers) {
       ASSERT_EQ(plainCard,plain2) << " plain=" << ((unsigned)plainCard) << " cipher pad=" << ((unsigned)testCipherPad(testDeck)) << " k=" << k << " i=" << i;
 
       deckPseudoShuffle(testDeck,cutLoc);
-      for (int j=0; j<CARDS; ++j) {
-	ASSERT_EQ(testDeck[j],deck[j]);
-      }
+      DECK_EQ(testDeck,deck);
     }
   }
 }
 
 
 TEST(Spider,Encode) {
+  //  for (int i=TEST_STRINGS.size()-1; i >= 0; --i) {
   for (int i=0; i<TEST_STRINGS.size(); ++i) {
     const wchar_t *str=TEST_STRINGS[i].c_str();
     int strLen = TEST_STRINGS[i].length();
@@ -394,7 +384,7 @@ TEST(Spider,Envelope) {
     Deck deck;
     deckInit(deck);
     
-    int maxCardLen = strLen*6+PREFIX;
+    int maxCardLen = (strLen+PREFIX)*10;
     std::vector<Card> cards(maxCardLen,0);
 
     int cardLen=encryptEnvelopeArray(deck,(wchar_t*)str,strLen,
@@ -402,12 +392,12 @@ TEST(Spider,Envelope) {
 				     &cards[0],maxCardLen);
     ASSERT_TRUE(cardLen > 0) << " test str # " << i;
 
-    int decStrCap=strLen*6+PREFIX;
+    int decStrCap=(strLen+PREFIX)*10;
     std::vector<wchar_t> decStr(decStrCap,0);
     deckInit(deck);
     int decStrLen=decryptEnvelopeArray(deck,&cards[0],cardLen,&decStr[0],decStrCap);
 
-    ASSERT_EQ(decStrLen,strLen);
+    ASSERT_EQ(decStrLen,strLen)  << " test str # " << i;
     for (int i=0; i<strLen; ++i) {
       ASSERT_EQ(decStr[i],str[i]);
     }
