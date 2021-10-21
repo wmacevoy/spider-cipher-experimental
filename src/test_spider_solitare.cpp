@@ -383,7 +383,7 @@ TEST(Spider,Envelope) {
     CardNotRandIOInit(&nrcg);
     Deck deck;
     deckInit(deck);
-    
+
     int maxCardLen = (strLen+PREFIX)*10;
     std::vector<Card> cards(maxCardLen,0);
 
@@ -392,22 +392,16 @@ TEST(Spider,Envelope) {
 				     &cards[0],maxCardLen);
     ASSERT_TRUE(cardLen > 0) << " test str # " << i;
 
-    int decStrCap=(strLen+PREFIX)*10;
-    std::vector<wchar_t> decStr(decStrCap,0);
+    int maxDecStrLen=(strLen+PREFIX)*10;
+    std::vector<wchar_t> decStr(maxDecStrLen,0);
     deckInit(deck);
-    int decStrLen=decryptEnvelopeArray(deck,&cards[0],cardLen,&decStr[0],decStrCap);
+    int decLen=decryptEnvelopeArray(deck,&cards[0],cardLen,&decStr[0],maxDecStrLen);
 
-    ASSERT_EQ(decStrLen,strLen)  << " test str # " << i;
-    for (int i=0; i<strLen; ++i) {
-      ASSERT_EQ(decStr[i],str[i]);
+    int maxLen = strLen > decLen ? strLen : decLen;
+    for (int j=0; j<maxLen; ++j) {
+      ASSERT_EQ(j < strLen ? str[j] : -1,j < decLen ? decStr[j] : -1) << " i=" << i << " j=" << j;
     }
+
+    ASSERT_EQ(strLen,decLen) << " i=" << i;
   }
 }
-
-int main(int argc, char** argv) {
-  setlocale(LC_ALL, "");
- ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
-}
-
-
