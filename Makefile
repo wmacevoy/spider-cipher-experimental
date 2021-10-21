@@ -139,9 +139,4 @@ bin/% : tmp/main_%.c.o $(PARTO)
 # generic link a test executable rule
 bin/test_% : tmp/test_%.cpp.o $(PARTO)
 	mkdir -p `dirname $@`
-	$(CXX) $(CXXFLAGS) $(GOOGLE_TEST_FLAGS) -o $@ $^ $(LDFLAGS) $(GOOGLE_TEST_LIBS)
-
-# generic link a test executable rule
-bin/test_% : tmp/test_%.c.o $(PARTO)
-	mkdir -p `dirname $@`
-	$(CC) $(CFLAGS) $(GOOGLE_TEST_FLAGS) -o $@ $^ $(LDFLAGS) $(GOOGLE_TEST_LIBS)
+	$(CXX) $(CXXFLAGS) $(GOOGLE_TEST_FLAGS) -o $@ $^ $(LDFLAGS) $(GOOGLE_TEST_LIBS) `nm -g -P $< | egrep "^main T" >/dev/null || echo $(GOOGLE_MAIN_LIBS)`
