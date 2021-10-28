@@ -7,9 +7,9 @@
 
 namespace spider {
 
-  const int DeckConfig::DEFAULT_CIPHER_ZTH = 0;
-  const int DeckConfig::DEFAULT_CIPHER_OFFSET = 3;
-  const int DeckConfig::DEFAULT_CUT_ZTH = 2;
+  const int DeckConfig::DEFAULT_CIPHER_ZTH = 2;
+  const int DeckConfig::DEFAULT_CIPHER_OFFSET = 39;
+  const int DeckConfig::DEFAULT_CUT_ZTH = 0;
   const int DeckConfig::DEFAULT_CUT_OFFSET = -1;
   
   DeckConfig::DeckConfig()
