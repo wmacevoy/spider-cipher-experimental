@@ -4,6 +4,7 @@
 
 import math
 import secrets
+from turtle import undobufferentries
 
 #       0   1   2   3   4   5   6   7   8   9
 FACES=['Q','A','2','3','4','5','6','7','8','9']
@@ -19,16 +20,19 @@ CUT_ZTH=0
 TAG_ZTH=2
 TAG_OFFSET=CARDS-1
 
-PREFIX_LEN=10
+PREFIX_LEN = 10
 
-def permute(p,a):
-    return [a[p[i]] for i in range(len(p))]
+# permute q with p (this is how permutations are composed p circle q)
+def permute(p,q):
+    return [p[q[i]] for i in range(len(p))]
 
 def testPermute():
-    p=[0,2,1]
-    q=[2,0,1]
-    pq=permute(p,q)
-    assert pq==[2,1,0]
+# example from wikipedia with 0-base indexing
+# https://en.wikipedia.org/wiki/Permutation_group
+    p=[1,3,0,2,4]
+    q=[4,3,2,1,0]
+    qp=permute(q,p)
+    assert qp==[3,1,4,2,0]
 
 def inversePermutation(q):
     p = [0] * len(q)
@@ -49,14 +53,17 @@ def identityPermutation(n=CARDS):
 def testIdentityPermutation():
     assert identityPermutation(3) == [0,1,2]
 
-def randomPermutation(n=CARDS):
+def randomPermutation(n=CARDS,rng=secrets.randbelow):
     p = identityPermutation(n)
     for i in range(n):
-        j=i+secrets.randbelow(n-i)
+        j=i+rng(n-i)
         (p[i],p[j])=(p[j],p[i])
     return p
 
 def testRandomPermutation():
+    # counts[i][j] counts how often the random permutation r
+    # has r[i]=j. This should be a binomial distribution.
+
     n = 100
     len = 4
     counts = [ [0]*len for i in range(len) ]
@@ -65,7 +72,6 @@ def testRandomPermutation():
         for i in range(len):
             counts[i][r[i]]=counts[i][r[i]]+1
 
-    print(counts)
     p=1/len
     q=1-p
     mean=n*p
@@ -104,25 +110,133 @@ def testBackFrontShufflePermutation():
 CUT_PERMUTATIONS = [ shiftPermutation(at,CARDS) for at in range(CARDS) ]
 
 def cutAt(deck,location):
-    return permute(CUT_PERMUTATIONS[location],deck)
+    return permute(deck,CUT_PERMUTATIONS[location])
+
+def testCutAt():
+    deck = [ 9, 8, 7, 6, 5, 4, 3, 2, 1, 0,\
+            19,18,17,16,15,14,13,12,11,10,\
+            29,28,27,26,25,24,23,22,21,20,\
+            39,38,37,36,35,34,33,32,31,30]
+
+    at = 5
+    result = cutAt(deck,at)
+
+    expect = [ 4, 3, 2, 1, 0,19,18,17,16,15,\
+              14,13,12,11,10,29,28,27,26,25,\
+              24,23,22,21,20,39,38,37,36,35,\
+              34,33,32,31,30, 9, 8, 7, 6, 5]
+
+    assert expect == result
+
+def uncutAt(deck,at):
+    return cutAt(deck,(CARDS-at)%CARDS)
+
+def testUncutAt():
+    deck = [ 4, 3, 2, 1, 0,19,18,17,16,15,\
+            14,13,12,11,10,29,28,27,26,25,\
+            24,23,22,21,20,39,38,37,36,35,\
+            34,33,32,31,30, 9, 8, 7, 6, 5]
+
+    at = 5
+    result = uncutAt(deck,at)
+
+    expect = [ 9, 8, 7, 6, 5, 4, 3, 2, 1, 0,\
+              19,18,17,16,15,14,13,12,11,10,\
+              29,28,27,26,25,24,23,22,21,20,\
+              39,38,37,36,35,34,33,32,31,30]
+
+    assert expect == result
+
 
 def cutOn(deck,card):
     return cutAt(deck,deck.index(card))
 
+def testCutOn():
+    deck = [ 9, 8, 7, 6, 5, 4, 3, 2, 1, 0,\
+            19,18,17,16,15,14,13,12,11,10,\
+            29,28,27,26,25,24,23,22,21,20,\
+            39,38,37,36,35,34,33,32,31,30]
+
+    card = 11
+    result = cutOn(deck,card)
+
+    expect = [11,10,29,28,27,26,25,24,23,22,\
+              21,20,39,38,37,36,35,34,33,32,\
+              31,30, 9, 8, 7, 6, 5, 4, 3, 2,\
+               1, 0,19,18,17,16,15,14,13,12]
+
+    assert expect == result
+
 BACK_FRONT_SHUFFLE_PERMUTATION = backFrontShufflePermutation(CARDS)
 
 def backFrontShuffle(deck):
-    return permute(BACK_FRONT_SHUFFLE_PERMUTATION,deck)
+    return permute(deck,BACK_FRONT_SHUFFLE_PERMUTATION)
 
-def cutCard(deck,plainCard=0):
-    return (deck[CUT_ZTH]+plainCard) % CARDS
+def testBackFrontShuffle():
+    deck = [ 9, 8, 7, 6, 5, 4, 3, 2, 1, 0,\
+            19,18,17,16,15,14,13,12,11,10,\
+            29,28,27,26,25,24,23,22,21,20,\
+            39,38,37,36,35,34,33,32,31,30]
+
+    result = backFrontShuffle(deck)
+
+    expect = [ 30,32,34,36,38,20,22,24,26,28,10,12,14,16,18, 0, 2, 4, 6, 8,\
+                9, 7, 5, 3, 1,19,17,15,13,11,29,27,25,23,21,39,37,35,33,31 ]
+
+    assert expect == result
+
+UN_BACK_FRONT_SHUFFLE_PERMUTATION = inversePermutation(backFrontShufflePermutation(CARDS))
+def unBackFrontShuffle(deck):
+    return permute(deck,UN_BACK_FRONT_SHUFFLE_PERMUTATION)
+def testUnBackFrontShuffle():
+    deck = [ 30,32,34,36,38,20,22,24,26,28,10,12,14,16,18, 0, 2, 4, 6, 8,\
+              9, 7, 5, 3, 1,19,17,15,13,11,29,27,25,23,21,39,37,35,33,31 ]
+
+    result = unBackFrontShuffle(deck)
+
+    expect=[ 9, 8, 7, 6, 5, 4, 3, 2, 1, 0,\
+            19,18,17,16,15,14,13,12,11,10,\
+            29,28,27,26,25,24,23,22,21,20,\
+            39,38,37,36,35,34,33,32,31,30]
+
+    assert expect == result
+
+def cutCard(deck,plain):
+    return (deck[CUT_ZTH]+plain) % CARDS
+
+def testCutCard():
+    deck = [ 30,32,34,36,38,20,22,24,26,28,10,12,14,16,18, 0, 2, 4, 6, 8,\
+              9, 7, 5, 3, 1,19,17,15,13,11,29,27,25,23,21,39,37,35,33,31 ]
+    plain = 5
+
+    expect = 35
+    result = cutCard(deck,plain)
+
+    assert expect == expect
 
 def tagCard(deck):
     return (deck[TAG_ZTH]+TAG_OFFSET) % CARDS
     
+def testTagCard():
+    deck = [ 30,32,34,36,38,20,22,24,26,28,10,12,14,16,18, 0, 2, 4, 6, 8,\
+              9, 7, 5, 3, 1,19,17,15,13,11,29,27,25,23,21,39,37,35,33,31 ]
+
+    expect = 33
+    result = tagCard(deck)
+    
+    assert expect == result
+
 def noiseCard(deck):
     tagCardLoc = deck.index(tagCard(deck))
     return deck[(tagCardLoc+1) % CARDS]
+
+def testNoiseCard():
+    deck = [ 30,32,34,36,38,20,22,24,26,28,10,12,14,16,18, 0, 2, 4, 6, 8,\
+              9, 7, 5, 3, 1,19,17,15,13,11,29,27,25,23,21,39,37,35,33,31 ]
+
+    expect = 31
+    result = noiseCard(deck)
+    assert expect == result
 
 def encrypt(deck,plain):
     tag = tagCard(deck)
@@ -138,6 +252,19 @@ def encrypt(deck,plain):
         
     return (deck,scrambled)
     
+def testEncrypt():
+    deck = [ 30,32,34,36,38,20,22,24,26,28,10,12,14,16,18, 0, 2, 4, 6, 8,\
+              9, 7, 5, 3, 1,19,17,15,13,11,29,27,25,23,21,39,37,35,33,31 ]
+    plain = 5
+
+    expectDeck = [35,39,23,27,11,15,19, 3, 7, 8, 4, 0,16,12,28,24,20,36,32,31,\
+                  33,30,34,38,22,26,10,14,18, 2, 6, 9, 5, 1,17,13,29,25,21,37]
+    expectScramble = 36
+
+    (resultDeck,resultScramble)=encrypt(deck,plain)
+    assert expectDeck == resultDeck
+    assert expectScramble == resultScramble
+    
 def decrypt(deck,scrambled):
     tag = tagCard(deck)
     noise = noiseCard(deck)
@@ -152,43 +279,85 @@ def decrypt(deck,scrambled):
         
     return (deck,plain)
 
+def testDecrypt():
+    deck = [ 30,32,34,36,38,20,22,24,26,28,10,12,14,16,18, 0, 2, 4, 6, 8,\
+              9, 7, 5, 3, 1,19,17,15,13,11,29,27,25,23,21,39,37,35,33,31 ]
+    scramble = 36
 
-UN_CUT_PERMUTATIONS = \
-    [ inversePermutation(CUT_PERMUTATIONS[at]) for at in range(CARDS) ]
+    expectDeck = [35,39,23,27,11,15,19, 3, 7, 8, 4, 0,16,12,28,24,20,36,32,31,\
+                  33,30,34,38,22,26,10,14,18, 2, 6, 9, 5, 1,17,13,29,25,21,37]
+    expectPlain = 5
 
-UN_BACK_FRONT_SHUFFLE_PERMUTATION = \
-    inversePermutation(BACK_FRONT_SHUFFLE_PERMUTATION)
+    (resultDeck,resultPlain)=decrypt(deck,scramble)
+    assert expectDeck == resultDeck
+    assert expectPlain == resultPlain
 
-def undoEncrypt(deck,scrambled,plain=None):
+def undoEncryptSlow(deck,scrambled,plains):
     undos=[]
-    noise = (scrambled + (CARDS-plain)) % CARDS if plain != None else None
+    for at1 in range(CARDS):
+        for at0 in range(CARDS):
+            undeck=uncutAt(unBackFrontShuffle(uncutAt(deck,at1)),at0)
+            for plain in plains:
+                if encrypt(undeck,plain) == (deck,scrambled):
+                    undos.append((undeck,plain))
+    return undos
+
+def undoEncrypt(deck,scrambled,plains):
+    undos=[]
+    plain = plains[0] if len(plains) == 1 else None
+    noise = (scrambled + (CARDS-plains[0])) % CARDS if len(plains) == 1 else None
     
     cut = deck[0]
-    for cutAt in range(CARDS):
-        undeck0=deck
-        undeck0=permute(undeck0,UN_CUT_PERMUTATIONS[cutAt])
-        undeck0=permute(undeck0,UN_BACK_FRONT_SHUFFLE_PERMUTATION)
+    for at in range(CARDS):
+        undeck0=unBackFrontShuffle(uncutAt(deck,at))
         
-        tag = deck[0]
-        for tagAt in range(CARDS):
-            undeck1=undeck0
-            undeck1=permute(undeck1,UN_CUT_PERMUTATIONS[tagAt])
+        tag0 = undeck0[0]
+        noise0 = undeck0[1]
+        if noise != None and noise != noise0: continue
 
-            if tagCard(undeck1) != tag: continue
-            
-            plain1 = (cut+(CARDS-undeck1[CUT_ZTH])) % CARDS
-            cut1=cutCard(undeck1,plain1)
-            noise1=noiseCard(undeck1)
+        cardTagZth=(tag0+(CARDS-TAG_OFFSET)) % CARDS
+        cardTagZthAt=undeck0.index(cardTagZth)
+        delta = (cardTagZthAt+(CARDS-TAG_ZTH)) % CARDS
 
-            if plain != None:
-                if cutCard(undeck1,plain) != cut: continue
-                if noiseCard(undeck1) != noise: continue
-
-            assert encrypt(undeck1,plain1) == scrambled
-
-            undos.append((undeck1,plain1))
+        undeck1 = cutAt(undeck0,delta)
+        plain1 = (cut+(CARDS-undeck1[CUT_ZTH])) % CARDS
+        if plain != None and plain1 != plain: continue
+        cut1=cutCard(undeck1,plain1)
+        assert cut == cutCard(undeck1,plain1)
+        assert tag0 == tagCard(undeck1)
+        if noise != None:
+            assert noise == noiseCard(undeck1)
+        assert encrypt(undeck1,plain1) == (deck,scrambled)
+        undos.append((undeck1,plain1))
 
     return undos
+
+def testUndoEncryptSlow():
+    deck = [35,39,23,27,11,15,19, 3, 7, 8, 4, 0,16,12,28,24,20,36,32,31,\
+                  33,30,34,38,22,26,10,14,18, 2, 6, 9, 5, 1,17,13,29,25,21,37]
+
+    undo = [ 30,32,34,36,38,20,22,24,26,28,10,12,14,16,18, 0, 2, 4, 6, 8,\
+              9, 7, 5, 3, 1,19,17,15,13,11,29,27,25,23,21,39,37,35,33,31 ]
+    plains = [5]
+    scramble = 36
+
+    undos=undoEncryptSlow(deck,scramble,plains)
+    assert (undo,plains[0]) in undos
+
+    undos=undoEncryptSlow(deck,scramble,range(CARDS))
+    assert (undo,plains[0]) in undos
+
+def testUndoEncrypt():
+    deck = [35,39,23,27,11,15,19, 3, 7, 8, 4, 0,16,12,28,24,20,36,32,31,\
+                  33,30,34,38,22,26,10,14,18, 2, 6, 9, 5, 1,17,13,29,25,21,37]
+
+    undo = [ 30,32,34,36,38,20,22,24,26,28,10,12,14,16,18, 0, 2, 4, 6, 8,\
+              9, 7, 5, 3, 1,19,17,15,13,11,29,27,25,23,21,39,37,35,33,31 ]
+    plain = 5
+    scramble = 36
+
+    assert undoEncrypt(deck,scramble,[plain]) == undoEncryptSlow(deck,scramble,[plain])
+    assert undoEncrypt(deck,scramble,[i for i in range(CARDS)]) == undoEncryptSlow(deck,scramble,[i for i in range(CARDS)])
 
 def checkedEncrypt(deck,plainCards):
     enDeck=deck.copy()
@@ -211,33 +380,32 @@ def checkedEncrypt(deck,plainCards):
     assert plainCards == unscrambledCards
 
     unDeck=enDeck
+    any = range(CARDS)
     for i in reversed(range(len(plainCards))):
-        plain = None
+        plains = any
         if i >= PREFIX_LEN and (i - PREFIX_LEN) % 2 == 0:
-            plain = plainCards[i]
-        undos=undoEncrypt(unDeck,plain)
-        print(undos)
-        print((enDecks[i],plainCards[i]))
+            plains = [plainCards[i]]
+        undos=undoEncrypt(enDecks[i+1],scrambledCards[i],plains)
         
         assert (enDecks[i],plainCards[i]) in undos
     return (enDeck,scrambledCards)
 
-def randomMessage(len):
-    return [secrets.randbelow(CARDS) for i in range(len)]
+def randomMessage(len,rng=secrets.randbelow):
+    return [rng(CARDS) for i in range(len)]
 
-def makePacket(message):
-    packet = range(PREFIX_LEN+2*len(message))
+def makePacket(message,rng=secrets.randbelow):
+    packet = [0]*(PREFIX_LEN+2*len(message))
     for i in range(len(packet)):
         if (i >= PREFIX_LEN) and (i - PREFIX_LEN) % 2 == 0:
             packet[i]=message[(i-PREFIX_LEN) // 2]
         else:
-            packet[i]=secrets.randbelow(CARDS)
+            packet[i]=rng(CARDS)
     return packet
 
-def randomDeck():
-    return randomPermutation(CARDS)
+def randomDeck(rng=secrets.randbelow):
+    return randomPermutation(CARDS,rng)
 
-def testRandomEncryptions():
+def skipTestRandomEncryptions():
     deck = [i for i in range(CARDS)]
     plainCards = [(CARDS-i) % CARDS for i in range(CARDS)]
     scramble = checkedEncrypt(deck,plainCards)
@@ -249,12 +417,3 @@ def testRandomEncryptions():
         plainCards = makePacket(message)
         scramble = checkedEncrypt(deck,plainCards)
 
-def test():
-    testPermute()
-    testInversePermutation()
-    testIdentityPermutation()        
-    testRandomPermutation()
-    testShiftPermutation()
-    testBackFrontShufflePermutation()        
-
-test()
